@@ -10,12 +10,12 @@ from redmine_cli.main import cli
 
 @pytest.fixture
 def runner():
-    return CliRunner(mix_stderr=False)
+    return CliRunner()
 
 
 @pytest.fixture
 def mock_redmine():
-    with patch("redmine_cli.config.create_redmine") as mock:
+    with patch("redmine_cli.context.create_redmine") as mock:
         rm = MagicMock()
         rm.url = "https://redmine.test"
         mock.return_value = rm

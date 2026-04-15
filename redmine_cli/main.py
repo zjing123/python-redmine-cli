@@ -9,6 +9,7 @@ from .config import (
     save_config_file,
     list_profiles,
     DEFAULT_CONFIG_PATH,
+    _extract_profile_name,
 )
 from .utils import resourceset_to_list
 from .resources import issue, project, user, time_entry, wiki_page, generic
@@ -104,34 +105,135 @@ def config_list(profile):
 
 
 @config_group.command("set")
-@click.argument("key")
-@click.argument("value")
+@click.option("--url", required=False, help="Redmine server URL")
+@click.option(
+    "--api-key",
+    default=None,
+    help="API key (mutually exclusive with --username/--password)",
+)
+@click.option("--username", default=None, help="Username (requires --password)")
+@click.option("--password", default=None, help="Password (requires --username)")
 @click.option(
     "--profile",
     "-p",
     default=None,
-    help="Set in specific profile (default section if omitted)",
+    help="Profile name (auto-derived from URL if omitted)",
 )
-def config_set(key, value, profile):
-    """Set a config value.
+@click.pass_context
+def config_set(ctx, url, api_key, username, password, profile):
+    """Create a new profile configuration.
+
+    \b
+    Auto name from URL:
+      redmine-cli config set --url https://staging.test --api-key secret
+      redmine-cli config set --url https://staging.test --username admin --password secret
+
+    \b
+    Named profile:
+      redmine-cli config set --url https://staging.test --api-key secret -p staging
+    """
+    data = load_config_file()
+
+    if profile and profile in data.get("profiles", {}):
+        raise click.UsageError(
+            f"Profile '{profile}' already exists. Use 'config update' to modify it."
+        )
+
+    if not url:
+        raise click.UsageError("--url is required.")
+    if api_key and (username or password):
+        raise click.UsageError(
+            "--api-key and --username/--password are mutually exclusive."
+        )
+    if (username and not password) or (password and not username):
+        raise click.UsageError("--username and --password must be used together.")
+
+    if profile is None:
+        profile = _extract_profile_name(url)
+
+    section = {"url": url}
+    if api_key:
+        section["api_key"] = api_key
+    elif username and password:
+        section["username"] = username
+        section["password"] = password
+
+    data.setdefault("profiles", {})[profile] = section
+    save_config_file(data)
+
+    masked = {}
+    for k, v in data["profiles"][profile].items():
+        if k in ("api_key", "password"):
+            masked[k] = "****" + str(v)[-4:] if v else ""
+        else:
+            masked[k] = v
+    emit({"set": True, "profile": profile, "config": masked})
+
+
+@config_group.command("update")
+@click.option("--url", required=False, help="Redmine server URL")
+@click.option(
+    "--api-key",
+    default=None,
+    help="API key (mutually exclusive with --username/--password)",
+)
+@click.option("--username", default=None, help="Username (requires --password)")
+@click.option("--password", default=None, help="Password (requires --username)")
+@click.option(
+    "--profile",
+    "-p",
+    required=True,
+    help="Profile name to update",
+)
+@click.pass_context
+def config_update(ctx, url, api_key, username, password, profile):
+    """Update an existing profile configuration.
 
     \b
     Examples:
-      redmine-cli config set url https://redmine.example.com/
-      redmine-cli config set api_key your_api_key_here
-      redmine-cli config set username admin
-      redmine-cli config set password secret
-      redmine-cli config set version "5.0.0"
-      redmine-cli config set url https://staging.test/ --profile staging
+      redmine-cli config update --url https://new.test -p staging
+      redmine-cli config update --username admin --password secret -p staging
+      redmine-cli config update --api-key secret -p staging
     """
     data = load_config_file()
-    if profile:
-        data.setdefault("profiles", {}).setdefault(profile, {})[key] = value
-    else:
-        data.setdefault("default", {})[key] = value
+
+    if profile not in data.get("profiles", {}):
+        raise click.UsageError(
+            f"Profile '{profile}' not found. Use 'config set' to create it."
+        )
+
+    if not any([url, api_key, username, password]):
+        raise click.UsageError(
+            "At least one option (--url, --api-key, --username, --password) is required."
+        )
+    if api_key and (username or password):
+        raise click.UsageError(
+            "--api-key and --username/--password are mutually exclusive."
+        )
+    if password and not username:
+        raise click.UsageError("--password requires --username.")
+
+    section = data["profiles"][profile]
+    if url:
+        section["url"] = url
+    if api_key:
+        section["api_key"] = api_key
+        section.pop("username", None)
+        section.pop("password", None)
+    if username:
+        section["username"] = username
+        section["password"] = password
+        section.pop("api_key", None)
+
     save_config_file(data)
-    section = profile or "default"
-    emit({"set": True, "profile": section, "key": key})
+
+    masked = {}
+    for k, v in data["profiles"][profile].items():
+        if k in ("api_key", "password"):
+            masked[k] = "****" + str(v)[-4:] if v else ""
+        else:
+            masked[k] = v
+    emit({"updated": True, "profile": profile, "config": masked})
 
 
 @config_group.command("get")
@@ -155,30 +257,22 @@ def config_get(key, profile):
 
 
 @config_group.command("unset")
-@click.argument("key")
-@click.option("--profile", "-p", default=None, help="Unset from specific profile")
-def config_unset(key, profile):
-    """Remove a config value."""
+@click.option(
+    "--profile",
+    "-p",
+    required=True,
+    help="Profile name to remove",
+)
+def config_unset(profile):
+    """Remove an entire profile configuration."""
     data = load_config_file()
-    section_key = "default"
-    if profile:
-        section = data.get("profiles", {}).get(profile, {})
-        section_key = f"profiles.{profile}"
-    else:
-        section = data.get("default", {})
-    if key in section:
-        del section[key]
-        save_config_file(data)
-        emit({"unset": True, "key": key, "profile": section_key})
-    else:
-        emit(
-            {
-                "unset": False,
-                "key": key,
-                "profile": section_key,
-                "note": "key not found",
-            }
-        )
+    profiles = data.get("profiles", {})
+    if profile not in profiles:
+        emit({"unset": False, "profile": profile, "note": "profile not found"})
+        return
+    del profiles[profile]
+    save_config_file(data)
+    emit({"unset": True, "profile": profile})
 
 
 # --- search command ---

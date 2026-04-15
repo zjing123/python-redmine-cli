@@ -6,12 +6,25 @@ Config file: ~/.config/redmine-cli/config.yaml
 
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 import yaml
 from redminelib import Redmine
 
 DEFAULT_CONFIG_DIR = Path.home() / ".config" / "redmine-cli"
 DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_DIR / "config.yaml"
+
+
+def _extract_profile_name(url):
+    """Extract profile name from URL hostname prefix.
+
+    Examples:
+        http://redminetest.kettle.net.cn:7777/redmine2/ -> redminetest
+        https://staging.example.com/ -> staging
+    """
+    parsed = urlparse(url)
+    hostname = parsed.hostname or ""
+    return hostname.split(".")[0]
 
 
 def _resolve_config_path():

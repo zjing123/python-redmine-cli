@@ -49,15 +49,17 @@ uv tool install --force /path/to/redmine-cli
 ## 快速开始
 
 ```bash
-# 1. 配置连接
-redmine-cli config set url https://redmine.example.com/
-redmine-cli config set api_key your_api_key_here
+# 1. 配置连接（使用 API Key）
+redmine-cli config set --url https://redmine.example.com/ --api-key your_api_key_here
+
+# 或使用用户名密码
+redmine-cli config set --url https://redmine.example.com/ --username admin --password secret
 
 # 2. 测试连接
 redmine-cli config test
 
 # 3. 开始使用
-redmine-cli issue list --assigned-to-me --status-id open
+redmine-cli issue list --assigned-to-me --status open
 ```
 
 ## 配置
@@ -69,8 +71,14 @@ redmine-cli issue list --assigned-to-me --status-id open
 ### 方式一：命令行配置（推荐）
 
 ```bash
-redmine-cli config set url https://redmine.example.com/
-redmine-cli config set api_key your_api_key_here
+# 使用 API Key
+redmine-cli config set --url https://redmine.example.com/ --api-key your_api_key_here
+
+# 使用用户名密码
+redmine-cli config set --url https://redmine.example.com/ --username admin --password secret
+
+# 指定 profile 名称
+redmine-cli config set --url https://staging.test --api-key secret -p staging
 ```
 
 ### 方式二：环境变量
@@ -127,15 +135,15 @@ redmine-cli config path                                      # 查看配置文�
 redmine-cli config profiles                                  # 列出所有实例及其 URL
 redmine-cli config list                                      # 查看当前配置（密钥掩码）
 redmine-cli config list --profile staging                    # 查看指定 profile 配置
-redmine-cli config set url https://redmine.example.com/      # 设置值
-redmine-cli config set api_key xxx                           # 设置 API Key
-redmine-cli config set username admin                        # 设置用户名
-redmine-cli config set password secret                       # 设置密码
-redmine-cli config set url https://staging.test/ -p staging  # 设置到指定 profile
+redmine-cli config set --url https://redmine.example.com/ --api-key xxx       # 创建 profile（自动命名）
+redmine-cli config set --url https://redmine.example.com/ --username admin --password secret  # 使用用户名密码
+redmine-cli config set --url https://staging.test/ --api-key xxx -p staging  # 创建指定名称 profile
+redmine-cli config update --url https://new.test/ -p staging                  # 更新 profile 的 URL
+redmine-cli config update --api-key newkey -p staging                         # 更新 profile 的 API Key
+redmine-cli config update --username admin --password secret -p staging       # 切换为用户名密码认证
 redmine-cli config get url                                   # 查看某项值（密钥自动掩码）
 redmine-cli config get api_key -p staging                    # 查看指定 profile 的值
-redmine-cli config unset api_key                             # 删除某项
-redmine-cli config unset api_key -p staging                  # 删除指定 profile 的某项
+redmine-cli config unset -p staging                          # 删除整个 profile
 redmine-cli config test                                      # 测试连接
 redmine-cli config show                                      # 显示当前连接 URL
 ```
@@ -146,18 +154,15 @@ redmine-cli config show                                      # 显示当前连�
 
 ```bash
 # 添加两个实例
-redmine-cli config set url https://redmine1.example.com/ -p redmine1
-redmine-cli config set api_key key1 -p redmine1
-
-redmine-cli config set url https://redmine2.example.com/ -p redmine2
-redmine-cli config set api_key key2 -p redmine2
+redmine-cli config set --url https://redmine1.example.com/ --api-key key1 -p redmine1
+redmine-cli config set --url https://redmine2.example.com/ --api-key key2 -p redmine2
 
 # 查看所有实例
 redmine-cli config profiles
 
 # 查询单个实例
-redmine-cli -p redmine1 issue list --assigned-to-me --status-id open
-redmine-cli -p redmine2 issue list --assigned-to-me --status-id open
+redmine-cli -p redmine1 issue list --assigned-to-me --status open
+redmine-cli -p redmine2 issue list --assigned-to-me --status open
 
 # 一条命令遍历所有实例（结果带 _profile 和 _source_url 字段区分来源）
 redmine-cli issue list --assigned-to-me --all-profiles
@@ -171,9 +176,9 @@ redmine-cli issue list --assigned-to-me --all-profiles
 # 列表
 redmine-cli issue list                                    # 全部 issue
 redmine-cli issue list --assigned-to-me                   # 指派给我的
-redmine-cli issue list --assigned-to-me --status-id open  # 我的打开 issue
-redmine-cli issue list --assigned-to-me --status-id "*"   # 我的全部 issue（含已关闭）
-redmine-cli issue list --project-id 1 --status-id open    # 某项目的打开 issue
+redmine-cli issue list --assigned-to-me --status open     # 我的打开 issue
+redmine-cli issue list --assigned-to-me --status "*"      # 我的全部 issue（含已关闭）
+redmine-cli issue list --project-id 1 --status open       # 某项目的打开 issue
 redmine-cli issue list --limit 10 --sort updated_on:desc  # 最近更新的 10 条
 redmine-cli issue list --assigned-to-me --all-profiles    # 遍历所有实例
 
@@ -352,7 +357,7 @@ redmine-cli resource delete issue 123
 # 典型 Agent 工作流
 redmine-cli config test                                        # 验证连接
 redmine-cli resource types                                     # 发现可用资源
-redmine-cli issue list --assigned-to-me --status-id open       # 查看我的任务
+redmine-cli issue list --assigned-to-me --status open          # 查看我的任务
 redmine-cli issue list --assigned-to-me --all-profiles         # 遍历所有实例
 redmine-cli issue get 123 -i journals                          # 查看详情+评论
 redmine-cli issue update 123 --status-id 3 --notes "已修复"    # 更新状态

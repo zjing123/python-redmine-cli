@@ -37,7 +37,9 @@ def issue_get(ctx, issue_id, includes):
 
 @issue_group.command("list")
 @click.option("--project-id", type=int, help="Filter by project ID")
-@click.option("--status-id", help="Filter by status: open, closed, *, or numeric ID")
+@click.option(
+    "--status", "status_id", help="Filter by status: open, closed, *, or numeric ID"
+)
 @click.option("--assigned-to-id", type=int, help="Filter by assignee user ID")
 @click.option(
     "--assigned-to-me", is_flag=True, help="Shortcut for --assigned-to-id=current user"

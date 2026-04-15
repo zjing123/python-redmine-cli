@@ -4,6 +4,7 @@ import json
 import pytest
 from unittest.mock import MagicMock
 
+from redmine_cli.main import cli
 from tests.cli.conftest import parse_output
 
 
@@ -33,14 +34,25 @@ def test_issue_get_with_includes(runner, mock_redmine, set_env):
 
 
 def test_issue_list(runner, mock_redmine, set_env):
-    rs = [
-        MagicMock(raw=lambda: {"id": 1, "subject": "First"}),
-        MagicMock(raw=lambda: {"id": 2, "subject": "Second"}),
-    ]
-    rs.total_count = 2
-    mock_set = rs
-    mock_set.__iter__ = lambda self: iter(rs)
-    mock_set.__getitem__ = lambda self, key: rs[key] if isinstance(key, int) else rs
+    mock_set = MagicMock()
+    mock_set.total_count = 2
+    mock_set.__iter__ = lambda self: iter(
+        [
+            MagicMock(raw=lambda: {"id": 1, "subject": "First"}),
+            MagicMock(raw=lambda: {"id": 2, "subject": "Second"}),
+        ]
+    )
+    mock_set.__getitem__ = lambda self, key: (
+        [
+            MagicMock(raw=lambda: {"id": 1, "subject": "First"}),
+            MagicMock(raw=lambda: {"id": 2, "subject": "Second"}),
+        ][key]
+        if isinstance(key, int)
+        else [
+            MagicMock(raw=lambda: {"id": 1, "subject": "First"}),
+            MagicMock(raw=lambda: {"id": 2, "subject": "Second"}),
+        ]
+    )
     mock_redmine.issue.all.return_value = mock_set
     mock_redmine.issue.filter.return_value = mock_set
 
@@ -52,12 +64,13 @@ def test_issue_list(runner, mock_redmine, set_env):
 
 
 def test_issue_list_with_filters(runner, mock_redmine, set_env):
-    mock_set = []
+    mock_set = MagicMock()
     mock_set.total_count = 0
+    mock_set.__iter__ = lambda self: iter([])
     mock_redmine.issue.filter.return_value = mock_set
 
     result = runner.invoke(
-        cli, ["issue", "list", "--project-id", "1", "--status-id", "open"]
+        cli, ["issue", "list", "--project-id", "1", "--status", "open"]
     )
     assert result.exit_code == 0
     mock_redmine.issue.filter.assert_called()

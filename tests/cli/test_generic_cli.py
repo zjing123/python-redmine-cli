@@ -4,6 +4,7 @@ import json
 import pytest
 from unittest.mock import MagicMock
 
+from redmine_cli.main import cli
 from tests.cli.conftest import parse_output
 
 
@@ -60,8 +61,9 @@ def test_resource_delete(runner, mock_redmine, set_env):
 
 
 def test_resource_filter(runner, mock_redmine, set_env):
-    mock_set = []
+    mock_set = MagicMock()
     mock_set.total_count = 0
+    mock_set.__iter__ = lambda self: iter([])
     mock_redmine.issue.filter.return_value = mock_set
 
     result = runner.invoke(
@@ -91,7 +93,13 @@ def test_config_test(runner, mock_redmine, set_env):
 
 
 def test_search(runner, mock_redmine, set_env):
-    mock_redmine.search.return_value = {"issues": [{"id": 1}]}
+    mock_rs = MagicMock()
+    mock_issue = MagicMock()
+    mock_issue.raw.return_value = {"id": 1}
+    mock_rs.__iter__ = lambda self: iter([mock_issue])
+    mock_rs.__len__ = lambda self: 1
+    mock_rs.__getitem__ = lambda self, key: [mock_issue][key]
+    mock_redmine.search.return_value = {"issues": mock_rs}
     result = runner.invoke(cli, ["search", "test query"])
     assert result.exit_code == 0
     data = parse_output(result.output)
