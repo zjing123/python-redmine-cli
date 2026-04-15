@@ -8,7 +8,8 @@
 - **零交互** — 无交互式提示，所有参数通过 flags 或 `--json` 传入
 - **Agent 友好** — 统一响应格式，便于程序解析
 - **动态资源路由** — 通过 `resource` 命令操作任意 Redmine 资源类型
-- **多环境** — 支持 profile 切换多套 Redmine 环境
+- **多实例管理** — 支持 profile 配置多套 Redmine 环境，`--all-profiles` 一键遍历
+- **配置管理** — `config set/get/list` 命令行管理配置，密钥自动掩码
 
 ## 安装
 
@@ -24,10 +25,17 @@ uv tool install /path/to/redmine-cli
 pipx install /path/to/redmine-cli
 ```
 
+### 从 GitHub 安装
+
+```bash
+uv tool install git+https://github.com/zjing123/python-redmine-cli.git
+```
+
 ### 开发模式
 
 ```bash
-cd redmine-cli
+git clone https://github.com/zjing123/python-redmine-cli.git
+cd python-redmine-cli
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
 ```
@@ -38,11 +46,34 @@ uv pip install -e ".[dev]"
 uv tool install --force /path/to/redmine-cli
 ```
 
+## 快速开始
+
+```bash
+# 1. 配置连接
+redmine-cli config set url https://redmine.example.com/
+redmine-cli config set api_key your_api_key_here
+
+# 2. 测试连接
+redmine-cli config test
+
+# 3. 开始使用
+redmine-cli issue list --assigned-to-me --status-id open
+```
+
 ## 配置
 
-三种种方式，优先级：命令行参数 > 环境变量 > 配置文件。
+配置优先级：命令行参数 > 环境变量 > 配置文件。
 
-### 环境变量
+配置文件路径：`~/.config/redmine-cli/config.yaml`
+
+### 方式一：命令行配置（推荐）
+
+```bash
+redmine-cli config set url https://redmine.example.com/
+redmine-cli config set api_key your_api_key_here
+```
+
+### 方式二：环境变量
 
 ```bash
 export REDMINE_URL="https://redmine.example.com/"
@@ -57,19 +88,20 @@ echo 'export REDMINE_API_KEY="your_api_key_here"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
-### 命令行参数
+### 方式三：命令行参数
 
 ```bash
 redmine-cli --url https://redmine.example.com/ --api-key xxx issue list
 ```
 
-### 配置文件 `~/.redmine-cli.yaml`
+### 方式四：手动编辑配置文件
+
+编辑 `~/.config/redmine-cli/config.yaml`：
 
 ```yaml
 default:
   url: https://redmine.example.com/
   api_key: your_api_key
-  version: "5.0.0"
 
 profiles:
   staging:
@@ -82,20 +114,56 @@ profiles:
     password: secret
 ```
 
-使用非默认 profile：
+使用指定 profile：
 
 ```bash
 redmine-cli -p staging issue list
 ```
 
-## 使用方法
-
-### 连接测试
+### 配置管理命令
 
 ```bash
-redmine-cli config test    # 测试连接
-redmine-cli config show    # 显示当前 URL
+redmine-cli config path                                      # 查看配置文件路径
+redmine-cli config profiles                                  # 列出所有实例及其 URL
+redmine-cli config list                                      # 查看当前配置（密钥掩码）
+redmine-cli config list --profile staging                    # 查看指定 profile 配置
+redmine-cli config set url https://redmine.example.com/      # 设置值
+redmine-cli config set api_key xxx                           # 设置 API Key
+redmine-cli config set username admin                        # 设置用户名
+redmine-cli config set password secret                       # 设置密码
+redmine-cli config set url https://staging.test/ -p staging  # 设置到指定 profile
+redmine-cli config get url                                   # 查看某项值（密钥自动掩码）
+redmine-cli config get api_key -p staging                    # 查看指定 profile 的值
+redmine-cli config unset api_key                             # 删除某项
+redmine-cli config unset api_key -p staging                  # 删除指定 profile 的某项
+redmine-cli config test                                      # 测试连接
+redmine-cli config show                                      # 显示当前连接 URL
 ```
+
+### 多实例配置
+
+当有多个 Redmine 实例时，通过 profile 管理：
+
+```bash
+# 添加两个实例
+redmine-cli config set url https://redmine1.example.com/ -p redmine1
+redmine-cli config set api_key key1 -p redmine1
+
+redmine-cli config set url https://redmine2.example.com/ -p redmine2
+redmine-cli config set api_key key2 -p redmine2
+
+# 查看所有实例
+redmine-cli config profiles
+
+# 查询单个实例
+redmine-cli -p redmine1 issue list --assigned-to-me --status-id open
+redmine-cli -p redmine2 issue list --assigned-to-me --status-id open
+
+# 一条命令遍历所有实例（结果带 _profile 和 _source_url 字段区分来源）
+redmine-cli issue list --assigned-to-me --all-profiles
+```
+
+## 使用方法
 
 ### Issue 操作
 
@@ -107,6 +175,7 @@ redmine-cli issue list --assigned-to-me --status-id open  # 我的打开 issue
 redmine-cli issue list --assigned-to-me --status-id "*"   # 我的全部 issue（含已关闭）
 redmine-cli issue list --project-id 1 --status-id open    # 某项目的打开 issue
 redmine-cli issue list --limit 10 --sort updated_on:desc  # 最近更新的 10 条
+redmine-cli issue list --assigned-to-me --all-profiles    # 遍历所有实例
 
 # 详情
 redmine-cli issue get 123
@@ -254,6 +323,21 @@ redmine-cli resource delete issue 123
 {"ok": false, "error": "Requested resource doesn't exist", "error_type": "ResourceNotFoundError"}
 ```
 
+### 多实例结果
+
+使用 `--all-profiles` 时，每条记录带 `_profile` 和 `_source_url` 字段标识来源：
+
+```json
+{
+  "ok": true,
+  "total_count": 6,
+  "data": [
+    {"id": 1, "subject": "...", "_profile": "redmine1", "_source_url": "https://redmine1.example.com"},
+    {"id": 5, "subject": "...", "_profile": "redmine2", "_source_url": "https://redmine2.example.com"}
+  ]
+}
+```
+
 ### 退出码
 
 | 退出码 | 含义 |
@@ -266,11 +350,13 @@ redmine-cli resource delete issue 123
 
 ```bash
 # 典型 Agent 工作流
-redmine-cli resource types                                    # 发现可用资源
-redmine-cli issue list --assigned-to-me --status-id open      # 查看我的任务
-redmine-cli issue get 123 -i journals                         # 查看详情+评论
-redmine-cli issue update 123 --status-id 3 --notes "已修复"   # 更新状态
-redmine-cli time-entry create --json '...'                    # 登记工时
+redmine-cli config test                                        # 验证连接
+redmine-cli resource types                                     # 发现可用资源
+redmine-cli issue list --assigned-to-me --status-id open       # 查看我的任务
+redmine-cli issue list --assigned-to-me --all-profiles         # 遍历所有实例
+redmine-cli issue get 123 -i journals                          # 查看详情+评论
+redmine-cli issue update 123 --status-id 3 --notes "已修复"    # 更新状态
+redmine-cli time-entry create --json '...'                     # 登记工时
 ```
 
 Agent 解析逻辑：
@@ -279,11 +365,13 @@ Agent 解析逻辑：
 2. 检查 `ok` 字段判断成功/失败
 3. 从 `data` 字段获取业务数据
 4. 列表数据通过 `total_count` 实现分页
+5. 多实例数据通过 `_profile` / `_source_url` 区分来源
 
 ## 开发
 
 ```bash
-cd redmine-cli
+git clone https://github.com/zjing123/python-redmine-cli.git
+cd python-redmine-cli
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
 
@@ -297,17 +385,19 @@ uv tool install --force .
 ## 项目结构
 
 ```
-redmine-cli/
+python-redmine-cli/
 ├── pyproject.toml
+├── README.md
+├── .gitignore
 ├── redmine_cli/
 │   ├── __init__.py
-│   ├── main.py              # Click 根入口
+│   ├── main.py              # Click 根入口 + config/search 命令
 │   ├── context.py            # 延迟连接初始化
-│   ├── config.py             # 配置管理
+│   ├── config.py             # 配置管理（文件/环境变量/profiles）
 │   ├── output.py             # JSON 输出/错误处理
 │   ├── utils.py              # 序列化工具
 │   └── resources/
-│       ├── issue.py          # Issue CRUD
+│       ├── issue.py          # Issue CRUD + --assigned-to-me + --all-profiles
 │       ├── project.py        # Project CRUD
 │       ├── user.py           # User CRUD
 │       ├── time_entry.py     # TimeEntry CRUD
