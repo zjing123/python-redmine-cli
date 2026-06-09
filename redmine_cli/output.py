@@ -31,13 +31,30 @@ EXIT_CODE_MAP = {
 }
 
 
-def emit(data, total_count=None, limit=None, offset=None):
+def _filter_fields(data, fields):
+    """Filter data items to only include specified fields.
+
+    Works on both lists (list commands) and dicts (single item).
+    """
+    if not fields:
+        return data
+    field_set = set(fields)
+    if isinstance(data, list):
+        return [{k: v for k, v in item.items() if k in field_set} for item in data]
+    if isinstance(data, dict):
+        return {k: v for k, v in data.items() if k in field_set}
+    return data
+
+
+def emit(data, total_count=None, limit=None, offset=None, fields=None):
     """Emit a successful JSON response to stdout."""
     result = {"ok": True}
     if total_count is not None:
         result["total_count"] = total_count
         result["limit"] = limit
         result["offset"] = offset
+    if fields:
+        data = _filter_fields(data, fields)
     result["data"] = data
     click.echo(json.dumps(result, default=str, ensure_ascii=False))
 

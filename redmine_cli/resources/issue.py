@@ -11,7 +11,7 @@ from ..config import create_redmine, list_profiles, load_config_file
 @click.group("issue")
 @click.pass_context
 def issue_group(ctx):
-    """Issue operations."""
+    """Issue operations: CRUD, watchers, copy, with filters and multi-profile support."""
     pass
 
 
@@ -21,12 +21,21 @@ def issue_group(ctx):
     "--include",
     "-i",
     "includes",
-    help="Comma-separated: children,attachments,relations,journals,watchers,changesets",
+    help="Comma-separated related data to include: children,attachments,relations,journals,watchers,changesets",
 )
 @click.pass_context
 @handle_errors
 def issue_get(ctx, issue_id, includes):
-    """Get a single issue by ID."""
+    """Get a single issue by ID.
+
+    Returns full issue details as JSON. Use -i to include related data
+    such as journals (comments history), attachments, relations, etc.
+
+    \b
+    Examples:
+      redmine-cli issue get 123
+      redmine-cli issue get 123 -i journals,attachments,relations
+    """
     rm = get_redmine(ctx)
     kwargs = {}
     if includes:
@@ -38,16 +47,20 @@ def issue_get(ctx, issue_id, includes):
 @issue_group.command("list")
 @click.option("--project-id", type=int, help="Filter by project ID")
 @click.option(
-    "--status", "status_id", help="Filter by status: open, closed, *, or numeric ID"
+    "--status",
+    "status_id",
+    help="Filter by status: open, closed, * (all), or a numeric status ID",
 )
 @click.option("--assigned-to-id", type=int, help="Filter by assignee user ID")
 @click.option(
-    "--assigned-to-me", is_flag=True, help="Shortcut for --assigned-to-id=current user"
+    "--assigned-to-me",
+    is_flag=True,
+    help="Shortcut: filter issues assigned to the current authenticated user",
 )
 @click.option(
     "--all-profiles",
     is_flag=True,
-    help="Query all configured profiles and merge results",
+    help="Query ALL configured profiles and merge results (adds _profile and _source_url fields)",
 )
 @click.option("--tracker-id", type=int, help="Filter by tracker ID")
 @click.option("--priority-id", type=int, help="Filter by priority ID")
@@ -55,12 +68,19 @@ def issue_get(ctx, issue_id, includes):
 @click.option("--category-id", type=int, help="Filter by category ID")
 @click.option("--fixed-version-id", type=int, help="Filter by target version ID")
 @click.option("--parent-id", type=int, help="Filter by parent issue ID")
-@click.option("--query-id", type=int, help="Use a saved query")
-@click.option("--sort", help="Sort expression, e.g. updated_on:desc")
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=all)")
-@click.option("--offset", type=int, default=0, help="Result offset")
+@click.option("--query-id", type=int, help="Use a saved Redmine query by ID")
+@click.option("--sort", help="Sort expression, e.g. updated_on:desc or priority:asc")
+@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
-    "--include", "-i", "includes", help="Comma-separated relations to include"
+    "--include",
+    "-i",
+    "includes",
+    help="Comma-separated related data to include: children,attachments,relations,etc.",
+)
+@click.option(
+    "--fields",
+    help="Comma-separated fields to include in output (e.g. id,subject,status). Reduces output size for agents.",
 )
 @click.pass_context
 @handle_errors
@@ -82,12 +102,27 @@ def issue_list(
     limit,
     offset,
     includes,
+    fields,
 ):
     """List issues with optional filters.
 
-    Use --all-profiles to query all configured Redmine instances at once.
+    \b
+    Supports pagination (--limit, --offset), sorting (--sort), and many
+    filter options. Use --assigned-to-me as a shortcut for current user's
+    issues. Use --all-profiles to query all configured Redmine instances
+    at once (results include _profile and _source_url fields).
+
+    \b
+    Examples:
+      redmine-cli issue list
+      redmine-cli issue list --assigned-to-me --status open
+      redmine-cli issue list --project-id 1 --status closed --limit 10
+      redmine-cli issue list --assigned-to-me --all-profiles
+      redmine-cli issue list --sort updated_on:desc --limit 5
+      redmine-cli issue list --fields id,subject,status --limit 50
     """
     filter_kwargs = {}
+    field_list = fields.split(",") if fields else None
     for key, val in [
         ("project_id", project_id),
         ("status_id", status_id),
@@ -107,7 +142,9 @@ def issue_list(
         filter_kwargs["include"] = includes.split(",")
 
     if all_profiles:
-        _issue_list_all_profiles(ctx, assigned_to_me, filter_kwargs, limit, offset)
+        _issue_list_all_profiles(
+            ctx, assigned_to_me, filter_kwargs, limit, offset, field_list
+        )
         return
 
     rm = get_redmine(ctx)
@@ -125,10 +162,14 @@ def issue_list(
         rs = rs[offset:]
 
     data = resourceset_to_list(rs)
-    emit(data, total_count=rs.total_count, limit=limit, offset=offset)
+    emit(
+        data, total_count=rs.total_count, limit=limit, offset=offset, fields=field_list
+    )
 
 
-def _issue_list_all_profiles(ctx, assigned_to_me, filter_kwargs, limit, offset):
+def _issue_list_all_profiles(
+    ctx, assigned_to_me, filter_kwargs, limit, offset, fields=None
+):
     """Query issues from all profiles and merge results."""
     data = load_config_file()
     profiles_config = data.get("profiles", {})
@@ -166,7 +207,13 @@ def _issue_list_all_profiles(ctx, assigned_to_me, filter_kwargs, limit, offset):
         except Exception as e:
             per_profile[profile_name] = {"error": str(e)}
 
-    emit(all_issues, total_count=len(all_issues), limit=limit, offset=offset)
+    emit(
+        all_issues,
+        total_count=len(all_issues),
+        limit=limit,
+        offset=offset,
+        fields=fields,
+    )
 
 
 @issue_group.command("create")
@@ -199,7 +246,19 @@ def issue_create(
     custom_fields,
     watcher_user_ids,
 ):
-    """Create a new issue."""
+    """Create a new issue.
+
+    \b
+    Either use individual flags (--project-id, --subject, etc.) or --json
+    to pass all fields at once. --project-id and --subject are the minimum
+    required fields. Custom fields can be passed via --custom-fields as JSON.
+
+    \b
+    Examples:
+      redmine-cli issue create --project-id 1 --subject "Bug report"
+      redmine-cli issue create --project-id 1 --subject "Feature" --tracker-id 2 --assigned-to-id 5
+      redmine-cli issue create --json '{"project_id":1,"subject":"Title","custom_fields":[{"id":1,"value":"val"}]}'
+    """
     rm = get_redmine(ctx)
     if json_data:
         fields = parse_json_input(json_data)
@@ -252,7 +311,18 @@ def issue_update(
     custom_fields,
     private_notes,
 ):
-    """Update an existing issue."""
+    """Update an existing issue.
+
+    \b
+    Only the fields you specify will be updated. Use --notes to add a comment.
+    Use --private-notes to mark the note as private. Supports --json for bulk updates.
+
+    \b
+    Examples:
+      redmine-cli issue update 123 --status-id 3 --notes "Fixed"
+      redmine-cli issue update 123 --assigned-to-id 5 --notes "Reassigned"
+      redmine-cli issue update 123 --json '{"status_id":3,"notes":"Bulk update"}'
+    """
     rm = get_redmine(ctx)
     if json_data:
         fields = parse_json_input(json_data)
@@ -280,7 +350,7 @@ def issue_update(
 @click.pass_context
 @handle_errors
 def issue_delete(ctx, issue_id):
-    """Delete an issue."""
+    """Delete an issue permanently. This action cannot be undone."""
     rm = get_redmine(ctx)
     rm.issue.delete(issue_id)
     emit({"deleted": True, "issue_id": issue_id})
@@ -292,7 +362,7 @@ def issue_delete(ctx, issue_id):
 @click.pass_context
 @handle_errors
 def issue_add_watcher(ctx, issue_id, user_id):
-    """Add a watcher to an issue."""
+    """Add a watcher to an issue. The user will receive notifications for changes."""
     rm = get_redmine(ctx)
     issue = rm.issue.get(issue_id)
     issue.watcher.add(user_id)
@@ -305,7 +375,7 @@ def issue_add_watcher(ctx, issue_id, user_id):
 @click.pass_context
 @handle_errors
 def issue_remove_watcher(ctx, issue_id, user_id):
-    """Remove a watcher from an issue."""
+    """Remove a watcher from an issue. The user will stop receiving notifications."""
     rm = get_redmine(ctx)
     issue = rm.issue.get(issue_id)
     issue.watcher.remove(user_id)
@@ -322,7 +392,11 @@ def issue_remove_watcher(ctx, issue_id, user_id):
 @click.pass_context
 @handle_errors
 def issue_copy(ctx, issue_id, project_id, link_original, includes):
-    """Copy an issue to another project."""
+    """Copy an issue to another project.
+
+    By default links the copy to the original issue. Use --no-link-original to skip.
+    Use --include to copy subtasks and/or attachments.
+    """
     rm = get_redmine(ctx)
     kwargs = {}
     if project_id:

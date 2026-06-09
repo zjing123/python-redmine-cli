@@ -34,14 +34,21 @@ def _coerce_id(resource_id):
 @click.group("resource")
 @click.pass_context
 def generic_group(ctx):
-    """Generic resource CRUD for any registered Redmine resource."""
+    """Generic resource CRUD for any registered Redmine resource type.
+
+    Use 'resource types' to discover all available resource types.
+    """
     pass
 
 
 @generic_group.command("types")
 @click.pass_context
 def resource_types(ctx):
-    """List all available resource types."""
+    """List all available resource types.
+
+    Returns the names of all Redmine resource types supported by the library,
+    e.g. issue, project, user, version, time_entry, wiki_page, etc.
+    """
     emit({"resource_types": sorted(resource_registry.keys())})
 
 
@@ -67,11 +74,15 @@ def resource_get(ctx, resource_name, resource_id):
 
 @generic_group.command("list")
 @click.argument("resource_name")
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=all)")
-@click.option("--offset", type=int, default=0, help="Result offset")
+@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--offset", type=int, default=0, help="Result offset for pagination")
+@click.option(
+    "--fields",
+    help="Comma-separated fields to include in output. Reduces output size for agents.",
+)
 @click.pass_context
 @handle_errors
-def resource_list(ctx, resource_name, limit, offset):
+def resource_list(ctx, resource_name, limit, offset, fields):
     """List all resources of a given type.
 
     \b
@@ -90,7 +101,13 @@ def resource_list(ctx, resource_name, limit, offset):
         rs = rs[offset:]
 
     data = resourceset_to_list(rs)
-    emit(data, total_count=rs.total_count, limit=limit, offset=offset)
+    emit(
+        data,
+        total_count=rs.total_count,
+        limit=limit,
+        offset=offset,
+        fields=fields.split(",") if fields else None,
+    )
 
 
 @generic_group.command("filter")
@@ -98,11 +115,15 @@ def resource_list(ctx, resource_name, limit, offset):
 @click.option(
     "--json", "json_data", required=True, help="JSON object with filter fields"
 )
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=all)")
-@click.option("--offset", type=int, default=0, help="Result offset")
+@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--offset", type=int, default=0, help="Result offset for pagination")
+@click.option(
+    "--fields",
+    help="Comma-separated fields to include in output. Reduces output size for agents.",
+)
 @click.pass_context
 @handle_errors
-def resource_filter(ctx, resource_name, json_data, limit, offset):
+def resource_filter(ctx, resource_name, json_data, limit, offset, fields):
     """Filter resources by fields.
 
     \b
@@ -122,7 +143,13 @@ def resource_filter(ctx, resource_name, json_data, limit, offset):
         rs = rs[offset:]
 
     data = resourceset_to_list(rs)
-    emit(data, total_count=rs.total_count, limit=limit, offset=offset)
+    emit(
+        data,
+        total_count=rs.total_count,
+        limit=limit,
+        offset=offset,
+        fields=fields.split(",") if fields else None,
+    )
 
 
 @generic_group.command("create")

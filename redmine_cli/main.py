@@ -17,13 +17,39 @@ from .resources import issue, project, user, time_entry, wiki_page, generic
 
 @click.group()
 @click.option(
-    "--profile", "-p", envvar="REDMINE_PROFILE", help="Config file profile name"
+    "--profile",
+    "-p",
+    envvar="REDMINE_PROFILE",
+    help="Use a specific connection profile. Profiles are managed via 'config set/update/unset'.",
 )
-@click.option("--url", envvar="REDMINE_URL", help="Redmine server URL")
-@click.option("--api-key", envvar="REDMINE_API_KEY", help="Redmine API key")
+@click.option(
+    "--url",
+    envvar="REDMINE_URL",
+    help="Override Redmine server URL for this invocation",
+)
+@click.option(
+    "--api-key",
+    envvar="REDMINE_API_KEY",
+    help="Override Redmine API key for this invocation",
+)
 @click.pass_context
 def cli(ctx, profile, url, api_key):
-    """Redmine CLI - Agent-friendly command line interface for Redmine."""
+    """Redmine CLI - Agent-friendly command line interface for Redmine.
+
+    \b
+    All output is JSON with format: {"ok": true/false, "data": ..., "error": ...}
+    Exit codes: 0=success, 1=business error, 2=argument error.
+
+    \b
+    Global options (--profile, --url, --api-key) can also be set via environment
+    variables: REDMINE_PROFILE, REDMINE_URL, REDMINE_API_KEY.
+
+    \b
+    Quick start:
+      1. redmine-cli config set --url https://redmine.example.com --api-key xxx
+      2. redmine-cli config test
+      3. redmine-cli issue list --assigned-to-me --status open
+    """
     ctx.ensure_object(dict)
     ctx.obj["_profile"] = profile
     ctx.obj["_url"] = url
@@ -35,19 +61,33 @@ def cli(ctx, profile, url, api_key):
 
 @cli.group("config")
 def config_group():
-    """Configuration management."""
+    """Manage Redmine connection profiles.
+
+    \b
+    Profiles store connection info (URL + credentials) in
+    ~/.config/redmine-cli/config.yaml. Supports API key auth and
+    username/password auth. Secrets are automatically masked in list/get output.
+    """
     pass
 
 
 @config_group.command("path")
 def config_path():
-    """Show config file path."""
+    """Show the config file path and whether it exists.
+
+    \b
+    Default path: ~/.config/redmine-cli/config.yaml
+    Override with environment variable: REDMINE_CONFIG=/path/to/config.yaml
+    """
     emit({"path": str(DEFAULT_CONFIG_PATH), "exists": DEFAULT_CONFIG_PATH.exists()})
 
 
 @config_group.command("profiles")
 def config_profiles():
-    """List all configured profiles."""
+    """List all configured profiles with their URLs.
+
+    Shows profile names and server URLs. Does not expose credentials.
+    """
     data = load_config_file()
     default = data.get("default", {})
     profiles = data.get("profiles", {})
@@ -62,7 +102,10 @@ def config_profiles():
 @config_group.command("show")
 @click.pass_context
 def config_show(ctx):
-    """Show current connection settings (URL only, no secrets)."""
+    """Show the active connection URL (no secrets exposed).
+
+    Useful to verify which Redmine instance the CLI is currently connected to.
+    """
     rm = get_redmine(ctx)
     emit({"url": rm.url})
 
@@ -71,7 +114,10 @@ def config_show(ctx):
 @click.pass_context
 @handle_errors
 def config_test(ctx):
-    """Test connection to Redmine."""
+    """Test connection to Redmine and return the authenticated user info.
+
+    Returns user details (id, login, name) on success. Fails with error if connection or auth fails.
+    """
     rm = get_redmine(ctx)
     user = rm.auth()
     emit({"connected": True, "user": user.raw()})
@@ -82,26 +128,83 @@ def config_test(ctx):
     "--profile",
     "-p",
     default=None,
-    help="Show specific profile (default section if omitted)",
+    help="Show a specific profile's config. Shows all profiles if omitted.",
 )
-def config_list(profile):
-    """List all config values (secrets masked)."""
+@click.option(
+    "--json",
+    "as_json",
+    is_flag=True,
+    help="Output JSON for agent/script usage.",
+)
+def config_list(profile, as_json):
+    """List config values (secrets are masked).
+
+    Without -p, shows all profiles. Secrets (api_key, password) show only last 4 chars.
+    """
     data = load_config_file()
-    section = (
-        data.get("profiles", {}).get(profile, {})
-        if profile
-        else data.get("default", {})
-    )
-    if not section:
-        emit({})
-        return
-    masked = {}
-    for k, v in section.items():
-        if k in ("api_key", "key", "password"):
-            masked[k] = "****" + str(v)[-4:] if v else ""
+    targets = {}
+    if profile:
+        if profile == "default":
+            targets[profile] = data.get("default", {})
         else:
-            masked[k] = v
-    emit({"profile": profile or "default", "values": masked})
+            targets[profile] = data.get("profiles", {}).get(profile, {})
+    else:
+        if data.get("default"):
+            targets["default"] = data["default"]
+        for name in sorted(data.get("profiles", {})):
+            targets[name] = data["profiles"][name]
+
+    rows = []
+    for name, section in targets.items():
+        if not section:
+            continue
+        api_key = section.get("api_key") or section.get("key") or ""
+        password = section.get("password") or ""
+        rows.append(
+            {
+                "profile": name,
+                "url": section.get("url", ""),
+                "auth": "api_key" if api_key else "password" if password else "",
+                "api_key": "****" + str(api_key)[-4:] if api_key else "",
+                "username": section.get("username", ""),
+                "password": "****" + str(password)[-4:] if password else "",
+            }
+        )
+
+    if as_json:
+        emit({"profiles": rows})
+        return
+
+    if not rows:
+        click.echo("No config profiles found.")
+        return
+
+    headers = ["PROFILE", "URL", "AUTH", "API_KEY", "USERNAME", "PASSWORD"]
+    keys = ["profile", "url", "auth", "api_key", "username", "password"]
+    widths = [
+        max(len(header), *(len(str(row[key])) for row in rows))
+        for header, key in zip(headers, keys)
+    ]
+    border = "+" + "+".join("-" * (width + 2) for width in widths) + "+"
+    click.echo(border)
+    click.echo(
+        "|"
+        + "|".join(
+            f" {header.ljust(width)} " for header, width in zip(headers, widths)
+        )
+        + "|"
+    )
+    click.echo(border)
+    for row in rows:
+        click.echo(
+            "|"
+            + "|".join(
+                f" {str(row[key]).ljust(width)} "
+                for key, width in zip(keys, widths)
+            )
+            + "|"
+        )
+        click.echo(border)
 
 
 @config_group.command("set")
@@ -122,6 +225,14 @@ def config_list(profile):
 @click.pass_context
 def config_set(ctx, url, api_key, username, password, profile):
     """Create a new profile configuration.
+
+    \b
+    --url is required. Provide either --api-key for API key auth, or
+    --username and --password together for basic auth. These two modes are
+    mutually exclusive.
+    If -p is omitted, the profile name is auto-derived from the URL hostname
+    (e.g. https://staging.example.com -> staging).
+    Use 'config update' to modify an existing profile.
 
     \b
     Auto name from URL:
@@ -190,6 +301,13 @@ def config_update(ctx, url, api_key, username, password, profile):
     """Update an existing profile configuration.
 
     \b
+    -p is required to specify which profile to update.
+    Provide at least one of --url, --api-key, --username/--password.
+    When switching auth mode (e.g. api-key -> username/password), the old
+    credentials are automatically removed.
+    Use 'config set' to create a new profile.
+
+    \b
     Examples:
       redmine-cli config update --url https://new.test -p staging
       redmine-cli config update --username admin --password secret -p staging
@@ -240,7 +358,11 @@ def config_update(ctx, url, api_key, username, password, profile):
 @click.argument("key")
 @click.option("--profile", "-p", default=None, help="Get from specific profile")
 def config_get(key, profile):
-    """Get a config value."""
+    """Get a single config value by key name.
+
+    Keys: url, api_key, username, password. Secrets are automatically masked.
+    Use -p to read from a specific profile.
+    """
     data = load_config_file()
     section = (
         data.get("profiles", {}).get(profile, {})
@@ -264,7 +386,11 @@ def config_get(key, profile):
     help="Profile name to remove",
 )
 def config_unset(profile):
-    """Remove an entire profile configuration."""
+    """Remove an entire profile and all its configuration.
+
+    -p is required. This deletes the whole profile (URL + credentials).
+    To change individual values, use 'config update' instead.
+    """
     data = load_config_file()
     profiles = data.get("profiles", {})
     if profile not in profiles:
@@ -280,11 +406,27 @@ def config_unset(profile):
 
 @cli.command("search")
 @click.argument("query")
-@click.option("--resources", "-r", help="Comma-separated resource types to search")
+@click.option(
+    "--resources",
+    "-r",
+    help="Comma-separated resource types to search (e.g. issues,wiki_pages,news)",
+)
 @click.pass_context
 @handle_errors
 def search(ctx, query, resources):
-    """Search Redmine resources."""
+    """Full-text search across Redmine resources.
+
+    \b
+    Searches issues, wiki pages, news, documents, changesets, etc.
+    Use -r to limit results to specific resource types.
+    Returns matching resources with their basic fields.
+
+    \b
+    Examples:
+      redmine-cli search "login error"
+      redmine-cli search "部署" -r issues
+      redmine-cli search "API" -r issues,documents
+    """
     rm = get_redmine(ctx)
     opts = {}
     if resources:

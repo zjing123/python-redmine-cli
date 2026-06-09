@@ -10,7 +10,7 @@ from ..context import get_redmine
 @click.group("project")
 @click.pass_context
 def project_group(ctx):
-    """Project operations."""
+    """Project operations: CRUD with lifecycle management."""
     pass
 
 
@@ -19,7 +19,13 @@ def project_group(ctx):
 @click.pass_context
 @handle_errors
 def project_get(ctx, project_id):
-    """Get a single project by ID or identifier."""
+    """Get a single project by ID or identifier string.
+
+    \b
+    Examples:
+      redmine-cli project get 1
+      redmine-cli project get my-project-identifier
+    """
     rm = get_redmine(ctx)
     try:
         pid = int(project_id)
@@ -30,18 +36,26 @@ def project_get(ctx, project_id):
 
 
 @project_group.command("list")
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=all)")
-@click.option("--offset", type=int, default=0, help="Result offset")
+@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--include",
     "-i",
     "includes",
     help="Comma-separated: trackers,issue_categories,enabled_modules,time_entry_activities",
 )
+@click.option(
+    "--fields",
+    help="Comma-separated fields to include in output (e.g. id,name,identifier). Reduces output size.",
+)
 @click.pass_context
 @handle_errors
-def project_list(ctx, limit, offset, includes):
-    """List all projects."""
+def project_list(ctx, limit, offset, includes, fields):
+    """List all projects.
+
+    Use -i to include related data (trackers, issue_categories, enabled_modules, etc.).
+    Supports pagination with --limit and --offset.
+    """
     rm = get_redmine(ctx)
     kwargs = {}
     if includes:
@@ -55,7 +69,13 @@ def project_list(ctx, limit, offset, includes):
         rs = rs[offset:]
 
     data = resourceset_to_list(rs)
-    emit(data, total_count=rs.total_count, limit=limit, offset=offset)
+    emit(
+        data,
+        total_count=rs.total_count,
+        limit=limit,
+        offset=offset,
+        fields=fields.split(",") if fields else None,
+    )
 
 
 @project_group.command("create")
@@ -80,7 +100,10 @@ def project_create(
     parent_id,
     tracker_ids,
 ):
-    """Create a new project."""
+    """Create a new project.
+
+    Name and identifier are required. Use --json to pass all fields at once.
+    """
     rm = get_redmine(ctx)
     if json_data:
         fields = parse_json_input(json_data)
@@ -110,7 +133,7 @@ def project_create(
 @click.pass_context
 @handle_errors
 def project_update(ctx, project_id, json_data, name, description, is_public, parent_id):
-    """Update an existing project."""
+    """Update an existing project's fields."""
     rm = get_redmine(ctx)
     try:
         pid = int(project_id)
@@ -135,7 +158,7 @@ def project_update(ctx, project_id, json_data, name, description, is_public, par
 @click.pass_context
 @handle_errors
 def project_delete(ctx, project_id):
-    """Delete a project."""
+    """Delete a project permanently. This action cannot be undone."""
     rm = get_redmine(ctx)
     try:
         pid = int(project_id)

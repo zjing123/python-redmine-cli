@@ -283,6 +283,120 @@ def test_config_update_nonexistent_profile(tmp_path, monkeypatch):
     assert result.exit_code != 0
 
 
+def test_config_list_shows_all_profiles_as_table(tmp_path, monkeypatch):
+    initial = {
+        "default": {"url": "https://default.test", "api_key": "defaultkey"},
+        "profiles": {
+            "staging": {"url": "https://staging.test", "api_key": "stagingkey"},
+            "prod": {
+                "url": "https://prod.test",
+                "username": "admin",
+                "password": "secret",
+            },
+        },
+    }
+    cf = _config_file(tmp_path, initial)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(cli, ["config", "list"])
+    assert result.exit_code == 0
+    assert "PROFILE" in result.output
+    assert "default" in result.output
+    assert "staging" in result.output
+    assert "prod" in result.output
+    assert "****gkey" in result.output
+    assert "stagingkey" not in result.output
+    assert "secret" not in result.output
+
+
+def test_config_list_json(tmp_path, monkeypatch):
+    initial = {
+        "profiles": {
+            "staging": {"url": "https://staging.test", "api_key": "stagingkey"},
+            "prod": {
+                "url": "https://prod.test",
+                "username": "admin",
+                "password": "secret",
+            },
+        }
+    }
+    cf = _config_file(tmp_path, initial)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(cli, ["config", "list", "--json"])
+    assert result.exit_code == 0
+    data = parse_output(result.output)
+    assert data["ok"] is True
+    assert data["data"]["profiles"] == [
+        {
+            "profile": "prod",
+            "url": "https://prod.test",
+            "auth": "password",
+            "api_key": "",
+            "username": "admin",
+            "password": "****cret",
+        },
+        {
+            "profile": "staging",
+            "url": "https://staging.test",
+            "auth": "api_key",
+            "api_key": "****gkey",
+            "username": "",
+            "password": "",
+        },
+    ]
+
+
+def test_config_list_json_specific_profile(tmp_path, monkeypatch):
+    initial = {
+        "profiles": {
+            "staging": {"url": "https://staging.test", "api_key": "stagingkey"},
+            "prod": {"url": "https://prod.test", "api_key": "prodkey"},
+        }
+    }
+    cf = _config_file(tmp_path, initial)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(cli, ["config", "list", "-p", "prod", "--json"])
+    assert result.exit_code == 0
+    data = parse_output(result.output)
+    assert data["data"]["profiles"] == [
+        {
+            "profile": "prod",
+            "url": "https://prod.test",
+            "auth": "api_key",
+            "api_key": "****dkey",
+            "username": "",
+            "password": "",
+        }
+    ]
+
+
+def test_config_list_json_default_profile(tmp_path, monkeypatch):
+    initial = {
+        "default": {"url": "https://default.test", "api_key": "defaultkey"},
+        "profiles": {
+            "prod": {"url": "https://prod.test", "api_key": "prodkey"},
+        },
+    }
+    cf = _config_file(tmp_path, initial)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(cli, ["config", "list", "-p", "default", "--json"])
+    assert result.exit_code == 0
+    data = parse_output(result.output)
+    assert data["data"]["profiles"] == [
+        {
+            "profile": "default",
+            "url": "https://default.test",
+            "auth": "api_key",
+            "api_key": "****tkey",
+            "username": "",
+            "password": "",
+        }
+    ]
+
+
 def test_config_unset_profile(tmp_path, monkeypatch):
     initial = {
         "profiles": {

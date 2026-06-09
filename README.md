@@ -133,8 +133,9 @@ redmine-cli -p staging issue list
 ```bash
 redmine-cli config path                                      # 查看配置文件路径
 redmine-cli config profiles                                  # 列出所有实例及其 URL
-redmine-cli config list                                      # 查看当前配置（密钥掩码）
+redmine-cli config list                                      # 以表格查看所有配置（密钥掩码）
 redmine-cli config list --profile staging                    # 查看指定 profile 配置
+redmine-cli config list --json                               # 以 JSON 查看所有配置（供 agent/脚本使用）
 redmine-cli config set --url https://redmine.example.com/ --api-key xxx       # 创建 profile（自动命名）
 redmine-cli config set --url https://redmine.example.com/ --username admin --password secret  # 使用用户名密码
 redmine-cli config set --url https://staging.test/ --api-key xxx -p staging  # 创建指定名称 profile
@@ -158,7 +159,7 @@ redmine-cli config set --url https://redmine1.example.com/ --api-key key1 -p red
 redmine-cli config set --url https://redmine2.example.com/ --api-key key2 -p redmine2
 
 # 查看所有实例
-redmine-cli config profiles
+redmine-cli config list
 
 # 查询单个实例
 redmine-cli -p redmine1 issue list --assigned-to-me --status open

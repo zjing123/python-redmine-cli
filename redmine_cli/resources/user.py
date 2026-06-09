@@ -10,17 +10,29 @@ from ..context import get_redmine
 @click.group("user")
 @click.pass_context
 def user_group(ctx):
-    """User operations."""
+    """User operations: CRUD with current-user support."""
     pass
 
 
 @user_group.command("get")
 @click.argument("user_id")
-@click.option("--include", "-i", "includes", help="Comma-separated: memberships,groups")
+@click.option(
+    "--include",
+    "-i",
+    "includes",
+    help="Comma-separated related data: memberships,groups",
+)
 @click.pass_context
 @handle_errors
 def user_get(ctx, user_id, includes):
-    """Get a single user by ID. Use 'current' for the authenticated user."""
+    """Get a single user by ID. Use 'current' for the authenticated user.
+
+    \b
+    Examples:
+      redmine-cli user get 5
+      redmine-cli user get current
+      redmine-cli user get current -i memberships,groups
+    """
     rm = get_redmine(ctx)
     kwargs = {}
     if includes:
@@ -34,16 +46,20 @@ def user_get(ctx, user_id, includes):
 
 @user_group.command("list")
 @click.option(
-    "--status", type=int, help="Filter by status (1=active, 2=registered, 3=locked)"
+    "--status", type=int, help="Filter by status: 1=active, 2=registered, 3=locked"
 )
-@click.option("--name", help="Filter by name")
+@click.option("--name", help="Filter by login, firstname, lastname, or email")
 @click.option("--group-id", type=int, help="Filter by group ID")
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=all)")
-@click.option("--offset", type=int, default=0, help="Result offset")
+@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--offset", type=int, default=0, help="Result offset for pagination")
+@click.option(
+    "--fields",
+    help="Comma-separated fields to include in output (e.g. id,login,firstname,lastname). Reduces output size.",
+)
 @click.pass_context
 @handle_errors
-def user_list(ctx, status, name, group_id, limit, offset):
-    """List users."""
+def user_list(ctx, status, name, group_id, limit, offset, fields):
+    """List users with optional filters and pagination."""
     rm = get_redmine(ctx)
     kwargs = {}
     if status is not None:
@@ -64,7 +80,13 @@ def user_list(ctx, status, name, group_id, limit, offset):
         rs = rs[offset:]
 
     data = resourceset_to_list(rs)
-    emit(data, total_count=rs.total_count, limit=limit, offset=offset)
+    emit(
+        data,
+        total_count=rs.total_count,
+        limit=limit,
+        offset=offset,
+        fields=fields.split(",") if fields else None,
+    )
 
 
 @user_group.command("create")
@@ -93,7 +115,7 @@ def user_create(
     generate_password,
     send_information,
 ):
-    """Create a new user."""
+    """Create a new user. Login, firstname, lastname, mail and password are typically required."""
     rm = get_redmine(ctx)
     if json_data:
         fields = parse_json_input(json_data)
@@ -130,7 +152,7 @@ def user_create(
 def user_update(
     ctx, user_id, json_data, firstname, lastname, mail, password, must_change_password
 ):
-    """Update an existing user."""
+    """Update an existing user's fields."""
     rm = get_redmine(ctx)
     if json_data:
         fields = parse_json_input(json_data)
@@ -153,7 +175,7 @@ def user_update(
 @click.pass_context
 @handle_errors
 def user_delete(ctx, user_id):
-    """Delete a user."""
+    """Delete a user permanently."""
     rm = get_redmine(ctx)
     rm.user.delete(user_id)
     emit({"deleted": True, "user_id": user_id})
