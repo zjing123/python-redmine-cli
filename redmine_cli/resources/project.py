@@ -178,7 +178,7 @@ def project_update(ctx, project_ref, json_data, name, description, is_public, pa
         )
 
     rm.project.update(pid, **fields)
-    emit({"updated": True, "project_id": pid})
+    emit({"updated": True, "resource": "project", "id": pid})
 
 
 @project_group.command("delete")
@@ -200,7 +200,7 @@ def project_delete(ctx, project_ref):
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
     rm.project.delete(pid)
-    emit({"deleted": True, "project_id": pid})
+    emit({"deleted": True, "resource": "project", "id": pid})
 
 
 @project_group.command("close")
@@ -222,7 +222,7 @@ def project_close(ctx, project_ref):
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
     rm.project.close(pid)
-    emit({"closed": True, "project_id": pid})
+    emit({"closed": True, "resource": "project", "id": pid})
 
 
 @project_group.command("reopen")
@@ -244,7 +244,7 @@ def project_reopen(ctx, project_ref):
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
     rm.project.reopen(pid)
-    emit({"reopened": True, "project_id": pid})
+    emit({"reopened": True, "resource": "project", "id": pid})
 
 
 @project_group.command("archive")
@@ -266,7 +266,7 @@ def project_archive(ctx, project_ref):
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
     rm.project.archive(pid)
-    emit({"archived": True, "project_id": pid})
+    emit({"archived": True, "resource": "project", "id": pid})
 
 
 @project_group.command("unarchive")
@@ -288,4 +288,4 @@ def project_unarchive(ctx, project_ref):
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
     rm.project.unarchive(pid)
-    emit({"unarchived": True, "project_id": pid})
+    emit({"unarchived": True, "resource": "project", "id": pid})

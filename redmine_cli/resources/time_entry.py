@@ -185,7 +185,7 @@ def time_entry_update(ctx, entry_ref, json_data, hours, activity_id, comments, s
         )
 
     rm.time_entry.update(int(entry_id), **fields)
-    emit({"updated": True, "time_entry_id": entry_id})
+    emit({"updated": True, "resource": "time_entry", "id": entry_id})
 
 
 @time_entry_group.command("delete")
@@ -206,4 +206,4 @@ def time_entry_delete(ctx, entry_ref):
     entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
     rm.time_entry.delete(int(entry_id))
-    emit({"deleted": True, "time_entry_id": entry_id})
+    emit({"deleted": True, "resource": "time_entry", "id": entry_id})

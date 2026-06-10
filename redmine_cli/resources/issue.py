@@ -353,7 +353,7 @@ def issue_update(
             fields["private_notes"] = True
 
     rm.issue.update(issue_id, **fields)
-    emit({"updated": True, "issue_id": issue_id})
+    emit({"updated": True, "resource": "issue", "id": issue_id})
 
 
 @issue_group.command("delete")
@@ -374,7 +374,7 @@ def issue_delete(ctx, issue_ref):
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
     rm.issue.delete(issue_id)
-    emit({"deleted": True, "issue_id": issue_id})
+    emit({"deleted": True, "resource": "issue", "id": issue_id})
 
 
 @issue_group.command("add-watcher")
@@ -397,7 +397,7 @@ def issue_add_watcher(ctx, issue_ref, user_id):
     rm = get_redmine(ctx)
     issue = rm.issue.get(issue_id)
     issue.watcher.add(user_id)
-    emit({"ok": True, "issue_id": issue_id, "watcher_added": user_id})
+    emit({"ok": True, "resource": "issue", "id": issue_id, "watcher_added": user_id})
 
 
 @issue_group.command("remove-watcher")
@@ -420,7 +420,7 @@ def issue_remove_watcher(ctx, issue_ref, user_id):
     rm = get_redmine(ctx)
     issue = rm.issue.get(issue_id)
     issue.watcher.remove(user_id)
-    emit({"ok": True, "issue_id": issue_id, "watcher_removed": user_id})
+    emit({"ok": True, "resource": "issue", "id": issue_id, "watcher_removed": user_id})
 
 
 @issue_group.command("copy")

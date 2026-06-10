@@ -201,7 +201,7 @@ def user_update(
             fields["must_change_passwd"] = True
 
     rm.user.update(int(uid), **fields)
-    emit({"updated": True, "user_id": uid})
+    emit({"updated": True, "resource": "user", "id": uid})
 
 
 @user_group.command("delete")
@@ -222,4 +222,4 @@ def user_delete(ctx, user_ref):
     uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)
     rm.user.delete(int(uid))
-    emit({"deleted": True, "user_id": uid})
+    emit({"deleted": True, "resource": "user", "id": uid})

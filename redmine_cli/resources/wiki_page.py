@@ -103,7 +103,7 @@ def wiki_page_update(ctx, title, project_id, json_data, text, comments):
         fields = build_fields(text=text, comments=comments)
 
     rm.wiki_page.update(title, project_id=project_id, **fields)
-    emit({"updated": True, "title": title, "project_id": project_id})
+    emit({"updated": True, "resource": "wiki_page", "title": title, "project_id": project_id})
 
 
 @wiki_page_group.command("delete")
@@ -115,4 +115,4 @@ def wiki_page_delete(ctx, title, project_id):
     """Delete a wiki page permanently."""
     rm = get_redmine(ctx)
     rm.wiki_page.delete(title, project_id=project_id)
-    emit({"deleted": True, "title": title, "project_id": project_id})
+    emit({"deleted": True, "resource": "wiki_page", "title": title, "project_id": project_id})

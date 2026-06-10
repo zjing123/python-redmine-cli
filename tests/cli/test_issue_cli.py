@@ -141,7 +141,8 @@ def test_issue_delete(runner, mock_redmine, set_env):
     data = parse_output(result.output)
     assert data["ok"] is True
     assert data["data"]["deleted"] is True
-    assert data["data"]["issue_id"] == 123
+    assert data["data"]["resource"] == "issue"
+    assert data["data"]["id"] == 123
     mock_redmine.issue.delete.assert_called_with(123)
 
 
