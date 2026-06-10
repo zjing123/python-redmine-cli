@@ -397,7 +397,7 @@ def issue_add_watcher(ctx, issue_ref, user_id):
     rm = get_redmine(ctx)
     issue = rm.issue.get(issue_id)
     issue.watcher.add(user_id)
-    emit({"ok": True, "resource": "issue", "id": issue_id, "watcher_added": user_id})
+    emit({"resource": "issue", "id": issue_id, "watcher_added": user_id})
 
 
 @issue_group.command("remove-watcher")
@@ -420,7 +420,7 @@ def issue_remove_watcher(ctx, issue_ref, user_id):
     rm = get_redmine(ctx)
     issue = rm.issue.get(issue_id)
     issue.watcher.remove(user_id)
-    emit({"ok": True, "resource": "issue", "id": issue_id, "watcher_removed": user_id})
+    emit({"resource": "issue", "id": issue_id, "watcher_removed": user_id})
 
 
 @issue_group.command("copy")
