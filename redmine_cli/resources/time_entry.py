@@ -10,7 +10,13 @@ from ..context import get_redmine, resolve_ref
 @click.group("time-entry")
 @click.pass_context
 def time_entry_group(ctx):
-    """Time entry operations: CRUD with date range and project/issue filters."""
+    """Time entry operations: CRUD with date range and project/issue filters.
+
+    \b
+    Resource arguments (ENTRY_REF) accept:
+      - Integer ID (requires -p):  redmine-cli -p prod time-entry get 123
+      - Full URL (auto-detects):   redmine-cli time-entry get https://prod.example.com/time_entries/123
+    """
     pass
 
 
@@ -21,8 +27,13 @@ def time_entry_group(ctx):
 def time_entry_get(ctx, entry_ref):
     """Get a single time entry by ID or URL.
 
-    Accepts an integer ID or a full Redmine URL.
-    When a URL is given, the profile is auto-detected from the URL.
+    \b
+    ENTRY_REF accepts an integer ID (requires -p) or a full Redmine URL.
+
+    \b
+    Examples:
+      redmine-cli -p redminex time-entry get 123
+      redmine-cli time-entry get https://redminex.silksoftware.com/time_entries/123
     """
     entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
@@ -59,8 +70,14 @@ def time_entry_list(
 ):
     """List time entries with optional filters.
 
+    \b
     Filter by project, issue, user, activity, or date range (--from, --to as YYYY-MM-DD).
     Supports pagination with --limit and --offset.
+
+    \b
+    Examples:
+      redmine-cli -p redminex time-entry list --issue-id 123
+      redmine-cli -p redminex time-entry list --from 2025-01-01 --to 2025-01-31
     """
     rm = get_redmine(ctx)
     kwargs = {}
@@ -110,8 +127,13 @@ def time_entry_create(
 ):
     """Create a new time entry.
 
+    \b
     Provide either --issue-id or --project-id, along with --hours.
     Use --json to pass all fields at once.
+
+    \b
+    Examples:
+      redmine-cli -p redminex time-entry create --issue-id 123 --hours 2.5 --activity-id 1
     """
     rm = get_redmine(ctx)
     if json_data:
@@ -142,7 +164,13 @@ def time_entry_create(
 def time_entry_update(ctx, entry_ref, json_data, hours, activity_id, comments, spent_on):
     """Update an existing time entry's fields.
 
-    Accepts an integer ID or a full Redmine URL.
+    \b
+    ENTRY_REF accepts an integer ID (requires -p) or a full Redmine URL.
+
+    \b
+    Examples:
+      redmine-cli -p redminex time-entry update 123 --hours 3.0
+      redmine-cli time-entry update https://redminex.silksoftware.com/time_entries/123 --hours 3.0
     """
     entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
@@ -167,7 +195,13 @@ def time_entry_update(ctx, entry_ref, json_data, hours, activity_id, comments, s
 def time_entry_delete(ctx, entry_ref):
     """Delete a time entry permanently.
 
-    Accepts an integer ID or a full Redmine URL.
+    \b
+    ENTRY_REF accepts an integer ID (requires -p) or a full Redmine URL.
+
+    \b
+    Examples:
+      redmine-cli -p redminex time-entry delete 123
+      redmine-cli time-entry delete https://redminex.silksoftware.com/time_entries/123
     """
     entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)

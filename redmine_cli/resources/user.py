@@ -10,7 +10,13 @@ from ..context import get_redmine, resolve_ref
 @click.group("user")
 @click.pass_context
 def user_group(ctx):
-    """User operations: CRUD with current-user support."""
+    """User operations: CRUD with current-user support.
+
+    \b
+    Resource arguments (USER_REF) accept:
+      - Integer ID or 'current' (requires -p):  redmine-cli -p prod user get 5
+      - Full URL (auto-detects profile):        redmine-cli user get https://prod.example.com/users/5
+    """
     pass
 
 
@@ -28,15 +34,16 @@ def user_get(ctx, user_ref, includes):
     """Get a single user by ID, 'current', or URL.
 
     \b
-    Accepts an integer ID, 'current' for the authenticated user,
-    or a full Redmine URL. When a URL is given, the profile is auto-detected.
+    USER_REF accepts:
+      - Integer ID or 'current' (requires -p):  redmine-cli -p prod user get 5
+      - Full URL (auto-detect):                 redmine-cli user get https://prod.example.com/users/5
 
     \b
     Examples:
-      redmine-cli user get 5
-      redmine-cli user get current
-      redmine-cli user get https://redmine.example.com/users/5
-      redmine-cli user get current -i memberships,groups
+      redmine-cli -p redminex user get 5
+      redmine-cli -p redminex user get current
+      redmine-cli user get https://redminex.silksoftware.com/users/5
+      redmine-cli -p redminex user get current -i memberships,groups
     """
     uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)
@@ -65,7 +72,13 @@ def user_get(ctx, user_ref, includes):
 @click.pass_context
 @handle_errors
 def user_list(ctx, status, name, group_id, limit, offset, fields):
-    """List users with optional filters and pagination."""
+    """List users with optional filters and pagination.
+
+    \b
+    Examples:
+      redmine-cli -p redminex user list
+      redmine-cli -p redminex user list --status 1 --limit 10
+    """
     rm = get_redmine(ctx)
     kwargs = {}
     if status is not None:
@@ -121,7 +134,12 @@ def user_create(
     generate_password,
     send_information,
 ):
-    """Create a new user. Login, firstname, lastname, mail and password are typically required."""
+    """Create a new user. Login, firstname, lastname, mail and password are typically required.
+
+    \b
+    Examples:
+      redmine-cli -p redminex user create --login admin --firstname Admin --lastname User --mail admin@test.com
+    """
     rm = get_redmine(ctx)
     if json_data:
         fields = parse_json_input(json_data)
@@ -160,7 +178,13 @@ def user_update(
 ):
     """Update an existing user's fields.
 
-    Accepts an integer ID or a full Redmine URL.
+    \b
+    USER_REF accepts an integer ID (requires -p) or a full Redmine URL.
+
+    \b
+    Examples:
+      redmine-cli -p redminex user update 5 --firstname "New Name"
+      redmine-cli user update https://redminex.silksoftware.com/users/5 --firstname "New Name"
     """
     uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)
@@ -187,7 +211,13 @@ def user_update(
 def user_delete(ctx, user_ref):
     """Delete a user permanently.
 
-    Accepts an integer ID or a full Redmine URL.
+    \b
+    USER_REF accepts an integer ID (requires -p) or a full Redmine URL.
+
+    \b
+    Examples:
+      redmine-cli -p redminex user delete 5
+      redmine-cli user delete https://redminex.silksoftware.com/users/5
     """
     uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)

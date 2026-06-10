@@ -41,14 +41,17 @@ def cli(ctx, profile, url, api_key):
     Exit codes: 0=success, 1=business error, 2=argument error.
 
     \b
-    Global options (--profile, --url, --api-key) can also be set via environment
-    variables: REDMINE_PROFILE, REDMINE_URL, REDMINE_API_KEY.
+    Profile selection (in priority order):
+      1. -p / REDMINE_PROFILE env var (explicit profile name)
+      2. Full URL as argument (auto-detect profile from URL)
+      3. --url / REDMINE_URL env var (direct URL override)
 
     \b
     Quick start:
       1. redmine-cli config set --url https://redmine.example.com --api-key xxx
       2. redmine-cli config test
-      3. redmine-cli issue list --assigned-to-me --status open
+      3. redmine-cli -p redmine issue list --assigned-to-me --status open
+      4. redmine-cli issue get https://redmine.example.com/issues/123
     """
     ctx.ensure_object(dict)
     ctx.obj["_profile"] = profile
@@ -426,9 +429,9 @@ def search(ctx, query, resources):
 
     \b
     Examples:
-      redmine-cli search "login error"
-      redmine-cli search "部署" -r issues
-      redmine-cli search "API" -r issues,documents
+      redmine-cli -p redminex search "login error"
+      redmine-cli -p redminex search "部署" -r issues
+      redmine-cli -p redminex search "API" -r issues,documents
     """
     rm = get_redmine(ctx)
     opts = {}

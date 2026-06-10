@@ -11,7 +11,13 @@ from ..config import create_redmine, list_profiles, load_config_file
 @click.group("issue")
 @click.pass_context
 def issue_group(ctx):
-    """Issue operations: CRUD, watchers, copy, with filters and multi-profile support."""
+    """Issue operations: CRUD, watchers, copy, with filters and multi-profile support.
+
+    \b
+    Resource arguments (ISSUE_REF) accept:
+      - Integer ID (requires -p or REDMINE_URL): redmine-cli -p prod issue get 123
+      - Full URL (auto-detects profile): redmine-cli issue get https://prod.example.com/issues/123
+    """
     pass
 
 
@@ -28,14 +34,16 @@ def issue_group(ctx):
 def issue_get(ctx, issue_ref, includes):
     """Get a single issue by ID or URL.
 
-    Accepts an integer ID or a full Redmine URL.
-    When a URL is given, the profile is auto-detected from the URL.
+    \b
+    ISSUE_REF accepts:
+      - Integer ID (requires -p):  redmine-cli -p prod issue get 123
+      - Full URL (auto-detect):    redmine-cli issue get https://prod.example.com/issues/123
 
     \b
     Examples:
-      redmine-cli issue get 123
-      redmine-cli issue get https://redmine.example.com/issues/123
-      redmine-cli issue get 123 -i journals,attachments,relations
+      redmine-cli -p redminex issue get 123
+      redmine-cli issue get https://redminex.silksoftware.com/issues/123
+      redmine-cli -p redminex issue get 123 -i journals,attachments,relations
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
@@ -116,12 +124,12 @@ def issue_list(
 
     \b
     Examples:
-      redmine-cli issue list
-      redmine-cli issue list --assigned-to-me --status open
-      redmine-cli issue list --project-id 1 --status closed --limit 10
+      redmine-cli -p redminex issue list
+      redmine-cli -p redminex issue list --assigned-to-me --status open
+      redmine-cli -p redminex issue list --project-id 1 --status closed --limit 10
       redmine-cli issue list --assigned-to-me --all-profiles
-      redmine-cli issue list --sort updated_on:desc --limit 5
-      redmine-cli issue list --fields id,subject,status --limit 50
+      redmine-cli -p redminex issue list --sort updated_on:desc --limit 5
+      redmine-cli -p redminex issue list --fields id,subject,status --limit 50
     """
     filter_kwargs = {}
     field_list = fields.split(",") if fields else None
@@ -257,9 +265,9 @@ def issue_create(
 
     \b
     Examples:
-      redmine-cli issue create --project-id 1 --subject "Bug report"
-      redmine-cli issue create --project-id 1 --subject "Feature" --tracker-id 2 --assigned-to-id 5
-      redmine-cli issue create --json '{"project_id":1,"subject":"Title","custom_fields":[{"id":1,"value":"val"}]}'
+      redmine-cli -p redminex issue create --project-id 1 --subject "Bug report"
+      redmine-cli -p redminex issue create --project-id 1 --subject "Feature" --tracker-id 2
+      redmine-cli -p redminex issue create --json '{"project_id":1,"subject":"Title"}'
     """
     rm = get_redmine(ctx)
     if json_data:
@@ -316,15 +324,14 @@ def issue_update(
     """Update an existing issue.
 
     \b
-    Accepts an integer ID or a full Redmine URL. When a URL is given,
-    the profile is auto-detected. Only the fields you specify will be updated.
-    Use --notes to add a comment.
+    ISSUE_REF accepts an integer ID (requires -p) or a full Redmine URL.
+    Only the fields you specify will be updated. Use --notes to add a comment.
 
     \b
     Examples:
-      redmine-cli issue update 123 --status-id 3 --notes "Fixed"
-      redmine-cli issue update https://redmine.example.com/issues/123 --status-id 3
-      redmine-cli issue update 123 --json '{"status_id":3,"notes":"Bulk update"}'
+      redmine-cli -p redminex issue update 123 --status-id 3 --notes "Fixed"
+      redmine-cli issue update https://redminex.silksoftware.com/issues/123 --status-id 3
+      redmine-cli -p redminex issue update 123 --json '{"status_id":3,"notes":"Bulk update"}'
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
@@ -356,7 +363,13 @@ def issue_update(
 def issue_delete(ctx, issue_ref):
     """Delete an issue permanently. This action cannot be undone.
 
-    Accepts an integer ID or a full Redmine URL.
+    \b
+    ISSUE_REF accepts an integer ID (requires -p) or a full Redmine URL.
+
+    \b
+    Examples:
+      redmine-cli -p redminex issue delete 123
+      redmine-cli issue delete https://redminex.silksoftware.com/issues/123
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
@@ -372,7 +385,13 @@ def issue_delete(ctx, issue_ref):
 def issue_add_watcher(ctx, issue_ref, user_id):
     """Add a watcher to an issue. The user will receive notifications for changes.
 
-    Accepts an integer ID or a full Redmine URL.
+    \b
+    ISSUE_REF accepts an integer ID (requires -p) or a full Redmine URL.
+
+    \b
+    Examples:
+      redmine-cli -p redminex issue add-watcher 123 --user-id 5
+      redmine-cli issue add-watcher https://redminex.silksoftware.com/issues/123 --user-id 5
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
@@ -389,7 +408,13 @@ def issue_add_watcher(ctx, issue_ref, user_id):
 def issue_remove_watcher(ctx, issue_ref, user_id):
     """Remove a watcher from an issue. The user will stop receiving notifications.
 
-    Accepts an integer ID or a full Redmine URL.
+    \b
+    ISSUE_REF accepts an integer ID (requires -p) or a full Redmine URL.
+
+    \b
+    Examples:
+      redmine-cli -p redminex issue remove-watcher 123 --user-id 5
+      redmine-cli issue remove-watcher https://redminex.silksoftware.com/issues/123 --user-id 5
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
@@ -410,9 +435,15 @@ def issue_remove_watcher(ctx, issue_ref, user_id):
 def issue_copy(ctx, issue_ref, project_id, link_original, includes):
     """Copy an issue to another project.
 
-    Accepts an integer ID or a full Redmine URL.
+    \b
+    ISSUE_REF accepts an integer ID (requires -p) or a full Redmine URL.
     By default links the copy to the original issue. Use --no-link-original to skip.
     Use --include to copy subtasks and/or attachments.
+
+    \b
+    Examples:
+      redmine-cli -p redminex issue copy 123 --project-id 2
+      redmine-cli issue copy https://redminex.silksoftware.com/issues/123 --project-id 2
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)

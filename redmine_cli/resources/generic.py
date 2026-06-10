@@ -28,7 +28,11 @@ def _get_manager(rm, resource_name):
 def generic_group(ctx):
     """Generic resource CRUD for any registered Redmine resource type.
 
+    \b
     Use 'resource types' to discover all available resource types.
+    Resource arguments (RESOURCE_REF) accept:
+      - Integer ID or identifier (requires -p):  redmine-cli -p prod resource get issue 123
+      - Full URL (auto-detects profile):         redmine-cli resource get issue https://prod.example.com/issues/123
     """
     pass
 
@@ -53,15 +57,15 @@ def resource_get(ctx, resource_name, resource_ref):
     """Get a single resource by ID or URL.
 
     \b
-    Accepts an integer ID, a string identifier, or a full Redmine URL.
-    When a URL is given, the profile is auto-detected from the URL.
+    RESOURCE_REF accepts an integer ID or string identifier (requires -p),
+    or a full Redmine URL (auto-detects profile).
 
     \b
     Examples:
-      redmine-cli resource get issue 123
-      redmine-cli resource get issue https://redmine.example.com/issues/123
-      redmine-cli resource get project my-project
-      redmine-cli resource get user 5
+      redmine-cli -p redminex resource get issue 123
+      redmine-cli resource get issue https://redminex.silksoftware.com/issues/123
+      redmine-cli -p redminex resource get project my-project
+      redmine-cli -p redminex resource get user 5
     """
     resource_id = resolve_ref(ctx, resource_ref)
     rm = get_redmine(ctx)
@@ -85,9 +89,9 @@ def resource_list(ctx, resource_name, limit, offset, fields):
 
     \b
     Examples:
-      redmine-cli resource list issue
-      redmine-cli resource list project
-      redmine-cli resource list user
+      redmine-cli -p redminex resource list issue
+      redmine-cli -p redminex resource list project
+      redmine-cli -p redminex resource list user
     """
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
@@ -126,9 +130,8 @@ def resource_filter(ctx, resource_name, json_data, limit, offset, fields):
 
     \b
     Examples:
-      redmine-cli resource filter issue --json '{"project_id": 1}'
-      redmine-cli resource filter user --json '{"status": 1}'
-      redmine-cli resource filter time-entry --json '{"project_id": 1, "from_date": "2025-01-01"}'
+      redmine-cli -p redminex resource filter issue --json '{"project_id": 1}'
+      redmine-cli -p redminex resource filter user --json '{"status": 1}'
     """
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
@@ -162,8 +165,8 @@ def resource_create(ctx, resource_name, json_data):
 
     \b
     Examples:
-      redmine-cli resource create issue --json '{"project_id": 1, "subject": "Bug report"}'
-      redmine-cli resource create project --json '{"name": "Test", "identifier": "test"}'
+      redmine-cli -p redminex resource create issue --json '{"project_id": 1, "subject": "Bug report"}'
+      redmine-cli -p redminex resource create project --json '{"name": "Test", "identifier": "test"}'
     """
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
@@ -184,13 +187,13 @@ def resource_update(ctx, resource_name, resource_ref, json_data):
     """Update an existing resource.
 
     \b
-    Accepts an integer ID or a full Redmine URL for the resource reference.
+    RESOURCE_REF accepts an integer ID (requires -p) or a full Redmine URL.
 
     \b
     Examples:
-      redmine-cli resource update issue 123 --json '{"status_id": 3, "notes": "Fixed"}'
-      redmine-cli resource update issue https://redmine.example.com/issues/123 --json '{"status_id": 3}'
-      redmine-cli resource update project test --json '{"name": "New Name"}'
+      redmine-cli -p redminex resource update issue 123 --json '{"status_id": 3}'
+      redmine-cli resource update issue https://redminex.silksoftware.com/issues/123 --json '{"status_id": 3}'
+      redmine-cli -p redminex resource update project test --json '{"name": "New Name"}'
     """
     resource_id = resolve_ref(ctx, resource_ref)
     rm = get_redmine(ctx)
@@ -209,13 +212,13 @@ def resource_delete(ctx, resource_name, resource_ref):
     """Delete a resource.
 
     \b
-    Accepts an integer ID or a full Redmine URL for the resource reference.
+    RESOURCE_REF accepts an integer ID (requires -p) or a full Redmine URL.
 
     \b
     Examples:
-      redmine-cli resource delete issue 123
-      redmine-cli resource delete issue https://redmine.example.com/issues/123
-      redmine-cli resource delete version 5
+      redmine-cli -p redminex resource delete issue 123
+      redmine-cli resource delete issue https://redminex.silksoftware.com/issues/123
+      redmine-cli -p redminex resource delete version 5
     """
     resource_id = resolve_ref(ctx, resource_ref)
     rm = get_redmine(ctx)
