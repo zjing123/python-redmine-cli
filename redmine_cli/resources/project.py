@@ -22,9 +22,13 @@ def project_group(ctx):
 
 @project_group.command("get")
 @click.argument("project_ref")
+@click.option(
+    "--fields",
+    help="Comma-separated fields to include in output (e.g. id,name,identifier). Reduces output size for agents.",
+)
 @click.pass_context
 @handle_errors
-def project_get(ctx, project_ref):
+def project_get(ctx, project_ref, fields):
     """Get a single project by ID, identifier, or URL.
 
     \b
@@ -37,11 +41,12 @@ def project_get(ctx, project_ref):
       redmine-cli -p redminex project get 1
       redmine-cli -p redminex project get my-project-identifier
       redmine-cli project get https://redminex.silksoftware.com/projects/my-project
+      redmine-cli -p redminex project get 1 --fields id,name,identifier
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
     result = rm.project.get(pid)
-    emit(result.raw())
+    emit(result.raw(), fields=fields.split(",") if fields else None)
 
 
 @project_group.command("list")
@@ -289,3 +294,18 @@ def project_unarchive(ctx, project_ref):
     rm = get_redmine(ctx)
     rm.project.unarchive(pid)
     emit({"unarchived": True, "resource": "project", "id": pid})
+
+
+@project_group.command("fields")
+@click.pass_context
+@handle_errors
+def project_fields(ctx):
+    """Show available fields for the project resource type.
+
+    \b
+    Example:
+      redmine-cli project fields
+    """
+    from ..fields import get_resource_fields
+
+    emit(get_resource_fields("project"))

@@ -51,9 +51,13 @@ def resource_types(ctx):
 @generic_group.command("get")
 @click.argument("resource_name")
 @click.argument("resource_ref")
+@click.option(
+    "--fields",
+    help="Comma-separated fields to include in output. Reduces output size for agents.",
+)
 @click.pass_context
 @handle_errors
-def resource_get(ctx, resource_name, resource_ref):
+def resource_get(ctx, resource_name, resource_ref, fields):
     """Get a single resource by ID or URL.
 
     \b
@@ -66,12 +70,13 @@ def resource_get(ctx, resource_name, resource_ref):
       redmine-cli resource get issue https://redminex.silksoftware.com/issues/123
       redmine-cli -p redminex resource get project my-project
       redmine-cli -p redminex resource get user 5
+      redmine-cli -p redminex resource get issue 123 --fields id,subject,status
     """
     resource_id = resolve_ref(ctx, resource_ref)
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
     result = manager.get(resource_id)
-    emit(result.raw())
+    emit(result.raw(), fields=fields.split(",") if fields else None)
 
 
 @generic_group.command("list")
@@ -225,3 +230,27 @@ def resource_delete(ctx, resource_name, resource_ref):
     manager = _get_manager(rm, resource_name)
     manager.delete(resource_id)
     emit({"deleted": True, "resource": resource_name, "id": resource_id})
+
+
+@generic_group.command("fields")
+@click.argument("resource_name")
+@click.pass_context
+@handle_errors
+def resource_fields(ctx, resource_name):
+    """Show available fields for any resource type.
+
+    No connection required. Reads metadata from the python-redmine library.
+
+    \b
+    Examples:
+      redmine-cli resource fields issue
+      redmine-cli resource fields project
+      redmine-cli resource fields wiki_page
+      redmine-cli resource fields tracker
+    """
+    from ..fields import get_resource_fields
+
+    try:
+        emit(get_resource_fields(resource_name))
+    except ValueError as e:
+        raise click.BadParameter(str(e))

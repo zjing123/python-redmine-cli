@@ -22,9 +22,13 @@ def time_entry_group(ctx):
 
 @time_entry_group.command("get")
 @click.argument("entry_ref")
+@click.option(
+    "--fields",
+    help="Comma-separated fields to include in output (e.g. id,hours,activity,comments). Reduces output size for agents.",
+)
 @click.pass_context
 @handle_errors
-def time_entry_get(ctx, entry_ref):
+def time_entry_get(ctx, entry_ref, fields):
     """Get a single time entry by ID or URL.
 
     \b
@@ -34,11 +38,12 @@ def time_entry_get(ctx, entry_ref):
     Examples:
       redmine-cli -p redminex time-entry get 123
       redmine-cli time-entry get https://redminex.silksoftware.com/time_entries/123
+      redmine-cli -p redminex time-entry get 123 --fields id,hours,spent_on
     """
     entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
     result = rm.time_entry.get(int(entry_id))
-    emit(result.raw())
+    emit(result.raw(), fields=fields.split(",") if fields else None)
 
 
 @time_entry_group.command("list")
@@ -207,3 +212,18 @@ def time_entry_delete(ctx, entry_ref):
     rm = get_redmine(ctx)
     rm.time_entry.delete(int(entry_id))
     emit({"deleted": True, "resource": "time_entry", "id": entry_id})
+
+
+@time_entry_group.command("fields")
+@click.pass_context
+@handle_errors
+def time_entry_fields(ctx):
+    """Show available fields for the time_entry resource type.
+
+    \b
+    Example:
+      redmine-cli time-entry fields
+    """
+    from ..fields import get_resource_fields
+
+    emit(get_resource_fields("time_entry"))

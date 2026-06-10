@@ -29,9 +29,13 @@ def issue_group(ctx):
     "includes",
     help="Comma-separated related data to include: children,attachments,relations,journals,watchers,changesets",
 )
+@click.option(
+    "--fields",
+    help="Comma-separated fields to include in output (e.g. id,subject,status). Reduces output size for agents.",
+)
 @click.pass_context
 @handle_errors
-def issue_get(ctx, issue_ref, includes):
+def issue_get(ctx, issue_ref, includes, fields):
     """Get a single issue by ID or URL.
 
     \b
@@ -44,6 +48,7 @@ def issue_get(ctx, issue_ref, includes):
       redmine-cli -p redminex issue get 123
       redmine-cli issue get https://redminex.silksoftware.com/issues/123
       redmine-cli -p redminex issue get 123 -i journals,attachments,relations
+      redmine-cli -p redminex issue get 123 --fields id,subject,status
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
@@ -51,7 +56,7 @@ def issue_get(ctx, issue_ref, includes):
     if includes:
         kwargs["include"] = includes.split(",")
     result = rm.issue.get(issue_id, **kwargs)
-    emit(result.raw())
+    emit(result.raw(), fields=fields.split(",") if fields else None)
 
 
 @issue_group.command("list")
@@ -455,3 +460,21 @@ def issue_copy(ctx, issue_ref, project_id, link_original, includes):
         link_original=link_original, include=inc, **kwargs
     )
     emit(result.raw())
+
+
+@issue_group.command("fields")
+@click.pass_context
+@handle_errors
+def issue_fields(ctx):
+    """Show available fields for the issue resource type.
+
+    Displays object fields, collection fields, includable fields,
+    and ID fields that can be used with --fields on get/list commands.
+
+    \b
+    Example:
+      redmine-cli issue fields
+    """
+    from ..fields import get_resource_fields
+
+    emit(get_resource_fields("issue"))

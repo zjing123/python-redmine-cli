@@ -28,9 +28,13 @@ def user_group(ctx):
     "includes",
     help="Comma-separated related data: memberships,groups",
 )
+@click.option(
+    "--fields",
+    help="Comma-separated fields to include in output (e.g. id,login,firstname,lastname). Reduces output size for agents.",
+)
 @click.pass_context
 @handle_errors
-def user_get(ctx, user_ref, includes):
+def user_get(ctx, user_ref, includes, fields):
     """Get a single user by ID, 'current', or URL.
 
     \b
@@ -44,6 +48,7 @@ def user_get(ctx, user_ref, includes):
       redmine-cli -p redminex user get current
       redmine-cli user get https://redminex.silksoftware.com/users/5
       redmine-cli -p redminex user get current -i memberships,groups
+      redmine-cli -p redminex user get 5 --fields id,login,firstname,lastname
     """
     uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)
@@ -54,7 +59,7 @@ def user_get(ctx, user_ref, includes):
         result = rm.user.get("current", **kwargs)
     else:
         result = rm.user.get(int(uid), **kwargs)
-    emit(result.raw())
+    emit(result.raw(), fields=fields.split(",") if fields else None)
 
 
 @user_group.command("list")
@@ -223,3 +228,18 @@ def user_delete(ctx, user_ref):
     rm = get_redmine(ctx)
     rm.user.delete(int(uid))
     emit({"deleted": True, "resource": "user", "id": uid})
+
+
+@user_group.command("fields")
+@click.pass_context
+@handle_errors
+def user_fields(ctx):
+    """Show available fields for the user resource type.
+
+    \b
+    Example:
+      redmine-cli user fields
+    """
+    from ..fields import get_resource_fields
+
+    emit(get_resource_fields("user"))

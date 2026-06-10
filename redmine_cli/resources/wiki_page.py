@@ -17,18 +17,23 @@ def wiki_page_group(ctx):
 @wiki_page_group.command("get")
 @click.argument("title")
 @click.option("--project-id", required=True, type=int, help="Project ID (required)")
+@click.option(
+    "--fields",
+    help="Comma-separated fields to include in output (e.g. title,text,updated_on). Reduces output size for agents.",
+)
 @click.pass_context
 @handle_errors
-def wiki_page_get(ctx, title, project_id):
+def wiki_page_get(ctx, title, project_id, fields):
     """Get a wiki page by title.
 
     \b
     Example:
       redmine-cli wiki-page get "PageTitle" --project-id 1
+      redmine-cli wiki-page get "PageTitle" --project-id 1 --fields title,text,version
     """
     rm = get_redmine(ctx)
     result = rm.wiki_page.get(title, project_id=project_id)
-    emit(result.raw())
+    emit(result.raw(), fields=fields.split(",") if fields else None)
 
 
 @wiki_page_group.command("list")
@@ -116,3 +121,18 @@ def wiki_page_delete(ctx, title, project_id):
     rm = get_redmine(ctx)
     rm.wiki_page.delete(title, project_id=project_id)
     emit({"deleted": True, "resource": "wiki_page", "title": title, "project_id": project_id})
+
+
+@wiki_page_group.command("fields")
+@click.pass_context
+@handle_errors
+def wiki_page_fields(ctx):
+    """Show available fields for the wiki_page resource type.
+
+    \b
+    Example:
+      redmine-cli wiki-page fields
+    """
+    from ..fields import get_resource_fields
+
+    emit(get_resource_fields("wiki_page"))
