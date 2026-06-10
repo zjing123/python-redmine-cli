@@ -4,7 +4,7 @@ import click
 
 from ..output import emit, handle_errors
 from ..utils import parse_json_input, resourceset_to_list, build_fields
-from ..context import get_redmine
+from ..context import get_redmine, resolve_ref
 from ..config import create_redmine, list_profiles, load_config_file
 
 
@@ -16,7 +16,7 @@ def issue_group(ctx):
 
 
 @issue_group.command("get")
-@click.argument("issue_id", type=int)
+@click.argument("issue_ref")
 @click.option(
     "--include",
     "-i",
@@ -25,17 +25,19 @@ def issue_group(ctx):
 )
 @click.pass_context
 @handle_errors
-def issue_get(ctx, issue_id, includes):
-    """Get a single issue by ID.
+def issue_get(ctx, issue_ref, includes):
+    """Get a single issue by ID or URL.
 
-    Returns full issue details as JSON. Use -i to include related data
-    such as journals (comments history), attachments, relations, etc.
+    Accepts an integer ID or a full Redmine URL.
+    When a URL is given, the profile is auto-detected from the URL.
 
     \b
     Examples:
       redmine-cli issue get 123
+      redmine-cli issue get https://redmine.example.com/issues/123
       redmine-cli issue get 123 -i journals,attachments,relations
     """
+    issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
     kwargs = {}
     if includes:
@@ -284,7 +286,7 @@ def issue_create(
 
 
 @issue_group.command("update")
-@click.argument("issue_id", type=int)
+@click.argument("issue_ref")
 @click.option("--json", "json_data", help="JSON string with fields to update")
 @click.option("--subject", help="New subject")
 @click.option("--description", help="New description")
@@ -299,7 +301,7 @@ def issue_create(
 @handle_errors
 def issue_update(
     ctx,
-    issue_id,
+    issue_ref,
     json_data,
     subject,
     description,
@@ -314,15 +316,17 @@ def issue_update(
     """Update an existing issue.
 
     \b
-    Only the fields you specify will be updated. Use --notes to add a comment.
-    Use --private-notes to mark the note as private. Supports --json for bulk updates.
+    Accepts an integer ID or a full Redmine URL. When a URL is given,
+    the profile is auto-detected. Only the fields you specify will be updated.
+    Use --notes to add a comment.
 
     \b
     Examples:
       redmine-cli issue update 123 --status-id 3 --notes "Fixed"
-      redmine-cli issue update 123 --assigned-to-id 5 --notes "Reassigned"
+      redmine-cli issue update https://redmine.example.com/issues/123 --status-id 3
       redmine-cli issue update 123 --json '{"status_id":3,"notes":"Bulk update"}'
     """
+    issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
     if json_data:
         fields = parse_json_input(json_data)
@@ -346,23 +350,31 @@ def issue_update(
 
 
 @issue_group.command("delete")
-@click.argument("issue_id", type=int)
+@click.argument("issue_ref")
 @click.pass_context
 @handle_errors
-def issue_delete(ctx, issue_id):
-    """Delete an issue permanently. This action cannot be undone."""
+def issue_delete(ctx, issue_ref):
+    """Delete an issue permanently. This action cannot be undone.
+
+    Accepts an integer ID or a full Redmine URL.
+    """
+    issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
     rm.issue.delete(issue_id)
     emit({"deleted": True, "issue_id": issue_id})
 
 
 @issue_group.command("add-watcher")
-@click.argument("issue_id", type=int)
+@click.argument("issue_ref")
 @click.option("--user-id", required=True, type=int, help="User ID to add as watcher")
 @click.pass_context
 @handle_errors
-def issue_add_watcher(ctx, issue_id, user_id):
-    """Add a watcher to an issue. The user will receive notifications for changes."""
+def issue_add_watcher(ctx, issue_ref, user_id):
+    """Add a watcher to an issue. The user will receive notifications for changes.
+
+    Accepts an integer ID or a full Redmine URL.
+    """
+    issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
     issue = rm.issue.get(issue_id)
     issue.watcher.add(user_id)
@@ -370,12 +382,16 @@ def issue_add_watcher(ctx, issue_id, user_id):
 
 
 @issue_group.command("remove-watcher")
-@click.argument("issue_id", type=int)
+@click.argument("issue_ref")
 @click.option("--user-id", required=True, type=int, help="User ID to remove")
 @click.pass_context
 @handle_errors
-def issue_remove_watcher(ctx, issue_id, user_id):
-    """Remove a watcher from an issue. The user will stop receiving notifications."""
+def issue_remove_watcher(ctx, issue_ref, user_id):
+    """Remove a watcher from an issue. The user will stop receiving notifications.
+
+    Accepts an integer ID or a full Redmine URL.
+    """
+    issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
     issue = rm.issue.get(issue_id)
     issue.watcher.remove(user_id)
@@ -383,7 +399,7 @@ def issue_remove_watcher(ctx, issue_id, user_id):
 
 
 @issue_group.command("copy")
-@click.argument("issue_id", type=int)
+@click.argument("issue_ref")
 @click.option("--project-id", type=int, help="Target project ID")
 @click.option(
     "--link-original/--no-link-original", default=True, help="Link to original"
@@ -391,12 +407,14 @@ def issue_remove_watcher(ctx, issue_id, user_id):
 @click.option("--include", "includes", help="Comma-separated: subtasks,attachments")
 @click.pass_context
 @handle_errors
-def issue_copy(ctx, issue_id, project_id, link_original, includes):
+def issue_copy(ctx, issue_ref, project_id, link_original, includes):
     """Copy an issue to another project.
 
+    Accepts an integer ID or a full Redmine URL.
     By default links the copy to the original issue. Use --no-link-original to skip.
     Use --include to copy subtasks and/or attachments.
     """
+    issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
     kwargs = {}
     if project_id:

@@ -90,6 +90,36 @@ def list_profiles():
     return profiles
 
 
+def resolve_profile_by_url(url):
+    """Match a full Redmine URL against configured profiles.
+
+    Uses longest prefix match so subpath-hosted Redmine instances
+    (e.g. https://host/redmine2/) are handled correctly.
+
+    :param url: Full Redmine URL, e.g. https://redminex.example.com/issues/123
+    :returns: Profile name string, or None if no match.
+    """
+    data = load_config_file()
+    url_clean = url.rstrip("/")
+
+    best_match = None
+    best_len = 0
+
+    for name, conf in data.get("profiles", {}).items():
+        profile_url = conf.get("url", "").rstrip("/")
+        if url_clean.startswith(profile_url) and len(profile_url) > best_len:
+            best_match = name
+            best_len = len(profile_url)
+
+    default = data.get("default", {})
+    if default:
+        default_url = default.get("url", "").rstrip("/")
+        if url_clean.startswith(default_url) and len(default_url) > best_len:
+            best_match = "default"
+
+    return best_match
+
+
 def create_redmine(profile=None, **overrides):
     """Create a Redmine instance from configuration.
 

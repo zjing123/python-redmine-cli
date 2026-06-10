@@ -1,8 +1,11 @@
 """Shared context helpers for redmine-cli."""
 
+import re
+from urllib.parse import urlparse
+
 import click
 
-from .config import create_redmine
+from .config import create_redmine, resolve_profile_by_url
 
 
 def get_redmine(ctx):
@@ -23,3 +26,54 @@ def get_redmine(ctx):
             click.echo(f'{{"ok": false, "error": "{e}"}}')
             raise click.Abort()
     return ctx.obj["redmine"]
+
+
+def resolve_ref(ctx, ref):
+    """Resolve a reference that can be an integer ID or a full Redmine URL.
+
+    When a URL is detected:
+    - Extracts the resource ID from the URL path
+    - Resolves the profile by matching URL against configured profiles
+    - Sets profile in ctx only if -p was not explicitly provided
+
+    When a plain integer or identifier is given, returns it unchanged.
+
+    :param ctx: Click context (ctx.obj must contain _profile key).
+    :param ref: Integer, numeric string, string identifier, or full Redmine URL.
+    :returns: Resource ID (int or str).
+    """
+    ref_str = str(ref).strip()
+
+    # Pure numeric -> return as int
+    if ref_str.isdigit():
+        return int(ref_str)
+
+    # Try as URL
+    parsed = urlparse(ref_str)
+    if parsed.scheme and parsed.netloc:
+        # Strip common trailing actions (/edit, /new)
+        path = re.sub(r"/(edit|new|delete)$", "", parsed.path)
+        segments = [s for s in path.split("/") if s]
+
+        if segments:
+            last = segments[-1]
+            try:
+                resource_id = int(last)
+            except ValueError:
+                resource_id = last  # String identifier (e.g. project identifier)
+
+            # Resolve profile from URL only if -p not explicitly set
+            if not ctx.obj.get("_profile"):
+                profile = resolve_profile_by_url(ref_str)
+                if profile:
+                    ctx.obj["_profile"] = profile
+                else:
+                    raise click.UsageError(
+                        f"No configured profile matches URL: {ref_str}\n"
+                        f"Use 'redmine-cli config set --url <base_url> --api-key <key>' to add one."
+                    )
+
+            return resource_id
+
+    # Return as-is (string identifier like "current", "my-project")
+    return ref_str

@@ -4,7 +4,7 @@ import click
 
 from ..output import emit, handle_errors
 from ..utils import parse_json_input, resourceset_to_list, build_fields
-from ..context import get_redmine
+from ..context import get_redmine, resolve_ref
 
 
 @click.group("time-entry")
@@ -15,13 +15,18 @@ def time_entry_group(ctx):
 
 
 @time_entry_group.command("get")
-@click.argument("entry_id", type=int)
+@click.argument("entry_ref")
 @click.pass_context
 @handle_errors
-def time_entry_get(ctx, entry_id):
-    """Get a single time entry by ID."""
+def time_entry_get(ctx, entry_ref):
+    """Get a single time entry by ID or URL.
+
+    Accepts an integer ID or a full Redmine URL.
+    When a URL is given, the profile is auto-detected from the URL.
+    """
+    entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
-    result = rm.time_entry.get(entry_id)
+    result = rm.time_entry.get(int(entry_id))
     emit(result.raw())
 
 
@@ -126,7 +131,7 @@ def time_entry_create(
 
 
 @time_entry_group.command("update")
-@click.argument("entry_id", type=int)
+@click.argument("entry_ref")
 @click.option("--json", "json_data", help="JSON string with fields to update")
 @click.option("--hours", type=float, help="New hours")
 @click.option("--activity-id", type=int, help="New activity ID")
@@ -134,8 +139,12 @@ def time_entry_create(
 @click.option("--spent-on", help="New date (YYYY-MM-DD)")
 @click.pass_context
 @handle_errors
-def time_entry_update(ctx, entry_id, json_data, hours, activity_id, comments, spent_on):
-    """Update an existing time entry's fields."""
+def time_entry_update(ctx, entry_ref, json_data, hours, activity_id, comments, spent_on):
+    """Update an existing time entry's fields.
+
+    Accepts an integer ID or a full Redmine URL.
+    """
+    entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
     if json_data:
         fields = parse_json_input(json_data)
@@ -147,16 +156,20 @@ def time_entry_update(ctx, entry_id, json_data, hours, activity_id, comments, sp
             spent_on=spent_on,
         )
 
-    rm.time_entry.update(entry_id, **fields)
+    rm.time_entry.update(int(entry_id), **fields)
     emit({"updated": True, "time_entry_id": entry_id})
 
 
 @time_entry_group.command("delete")
-@click.argument("entry_id", type=int)
+@click.argument("entry_ref")
 @click.pass_context
 @handle_errors
-def time_entry_delete(ctx, entry_id):
-    """Delete a time entry permanently."""
+def time_entry_delete(ctx, entry_ref):
+    """Delete a time entry permanently.
+
+    Accepts an integer ID or a full Redmine URL.
+    """
+    entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
-    rm.time_entry.delete(entry_id)
+    rm.time_entry.delete(int(entry_id))
     emit({"deleted": True, "time_entry_id": entry_id})

@@ -4,7 +4,7 @@ import click
 
 from ..output import emit, handle_errors
 from ..utils import parse_json_input, resourceset_to_list, build_fields
-from ..context import get_redmine
+from ..context import get_redmine, resolve_ref
 
 
 @click.group("user")
@@ -15,7 +15,7 @@ def user_group(ctx):
 
 
 @user_group.command("get")
-@click.argument("user_id")
+@click.argument("user_ref")
 @click.option(
     "--include",
     "-i",
@@ -24,23 +24,29 @@ def user_group(ctx):
 )
 @click.pass_context
 @handle_errors
-def user_get(ctx, user_id, includes):
-    """Get a single user by ID. Use 'current' for the authenticated user.
+def user_get(ctx, user_ref, includes):
+    """Get a single user by ID, 'current', or URL.
+
+    \b
+    Accepts an integer ID, 'current' for the authenticated user,
+    or a full Redmine URL. When a URL is given, the profile is auto-detected.
 
     \b
     Examples:
       redmine-cli user get 5
       redmine-cli user get current
+      redmine-cli user get https://redmine.example.com/users/5
       redmine-cli user get current -i memberships,groups
     """
+    uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)
     kwargs = {}
     if includes:
         kwargs["include"] = includes.split(",")
-    if user_id == "current":
+    if uid == "current":
         result = rm.user.get("current", **kwargs)
     else:
-        result = rm.user.get(int(user_id), **kwargs)
+        result = rm.user.get(int(uid), **kwargs)
     emit(result.raw())
 
 
@@ -140,7 +146,7 @@ def user_create(
 
 
 @user_group.command("update")
-@click.argument("user_id", type=int)
+@click.argument("user_ref")
 @click.option("--json", "json_data", help="JSON string with fields to update")
 @click.option("--firstname", help="New first name")
 @click.option("--lastname", help="New last name")
@@ -150,9 +156,13 @@ def user_create(
 @click.pass_context
 @handle_errors
 def user_update(
-    ctx, user_id, json_data, firstname, lastname, mail, password, must_change_password
+    ctx, user_ref, json_data, firstname, lastname, mail, password, must_change_password
 ):
-    """Update an existing user's fields."""
+    """Update an existing user's fields.
+
+    Accepts an integer ID or a full Redmine URL.
+    """
+    uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)
     if json_data:
         fields = parse_json_input(json_data)
@@ -166,16 +176,20 @@ def user_update(
         if must_change_password:
             fields["must_change_passwd"] = True
 
-    rm.user.update(user_id, **fields)
-    emit({"updated": True, "user_id": user_id})
+    rm.user.update(int(uid), **fields)
+    emit({"updated": True, "user_id": uid})
 
 
 @user_group.command("delete")
-@click.argument("user_id", type=int)
+@click.argument("user_ref")
 @click.pass_context
 @handle_errors
-def user_delete(ctx, user_id):
-    """Delete a user permanently."""
+def user_delete(ctx, user_ref):
+    """Delete a user permanently.
+
+    Accepts an integer ID or a full Redmine URL.
+    """
+    uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)
-    rm.user.delete(user_id)
-    emit({"deleted": True, "user_id": user_id})
+    rm.user.delete(int(uid))
+    emit({"deleted": True, "user_id": uid})

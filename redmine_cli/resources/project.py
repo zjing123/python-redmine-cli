@@ -4,7 +4,7 @@ import click
 
 from ..output import emit, handle_errors
 from ..utils import parse_json_input, resourceset_to_list, build_fields
-from ..context import get_redmine
+from ..context import get_redmine, resolve_ref
 
 
 @click.group("project")
@@ -15,22 +15,24 @@ def project_group(ctx):
 
 
 @project_group.command("get")
-@click.argument("project_id")
+@click.argument("project_ref")
 @click.pass_context
 @handle_errors
-def project_get(ctx, project_id):
-    """Get a single project by ID or identifier string.
+def project_get(ctx, project_ref):
+    """Get a single project by ID, identifier, or URL.
+
+    \b
+    Accepts an integer ID, a string identifier, or a full Redmine URL.
+    When a URL is given, the profile is auto-detected from the URL.
 
     \b
     Examples:
       redmine-cli project get 1
       redmine-cli project get my-project-identifier
+      redmine-cli project get https://redmine.example.com/projects/my-project
     """
+    pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    try:
-        pid = int(project_id)
-    except ValueError:
-        pid = project_id
     result = rm.project.get(pid)
     emit(result.raw())
 
@@ -124,7 +126,7 @@ def project_create(
 
 
 @project_group.command("update")
-@click.argument("project_id")
+@click.argument("project_ref")
 @click.option("--json", "json_data", help="JSON string with fields to update")
 @click.option("--name", help="New name")
 @click.option("--description", help="New description")
@@ -132,13 +134,13 @@ def project_create(
 @click.option("--parent-id", type=int, help="New parent project ID")
 @click.pass_context
 @handle_errors
-def project_update(ctx, project_id, json_data, name, description, is_public, parent_id):
-    """Update an existing project's fields."""
+def project_update(ctx, project_ref, json_data, name, description, is_public, parent_id):
+    """Update an existing project's fields.
+
+    Accepts an integer ID, a string identifier, or a full Redmine URL.
+    """
+    pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    try:
-        pid = int(project_id)
-    except ValueError:
-        pid = project_id
     if json_data:
         fields = parse_json_input(json_data)
     else:
@@ -150,79 +152,79 @@ def project_update(ctx, project_id, json_data, name, description, is_public, par
         )
 
     rm.project.update(pid, **fields)
-    emit({"updated": True, "project_id": project_id})
+    emit({"updated": True, "project_id": pid})
 
 
 @project_group.command("delete")
-@click.argument("project_id")
+@click.argument("project_ref")
 @click.pass_context
 @handle_errors
-def project_delete(ctx, project_id):
-    """Delete a project permanently. This action cannot be undone."""
+def project_delete(ctx, project_ref):
+    """Delete a project permanently. This action cannot be undone.
+
+    Accepts an integer ID, a string identifier, or a full Redmine URL.
+    """
+    pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    try:
-        pid = int(project_id)
-    except ValueError:
-        pid = project_id
     rm.project.delete(pid)
-    emit({"deleted": True, "project_id": project_id})
+    emit({"deleted": True, "project_id": pid})
 
 
 @project_group.command("close")
-@click.argument("project_id")
+@click.argument("project_ref")
 @click.pass_context
 @handle_errors
-def project_close(ctx, project_id):
-    """Close a project (Redmine >= 5.0)."""
+def project_close(ctx, project_ref):
+    """Close a project (Redmine >= 5.0).
+
+    Accepts an integer ID, a string identifier, or a full Redmine URL.
+    """
+    pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    try:
-        pid = int(project_id)
-    except ValueError:
-        pid = project_id
     rm.project.close(pid)
-    emit({"closed": True, "project_id": project_id})
+    emit({"closed": True, "project_id": pid})
 
 
 @project_group.command("reopen")
-@click.argument("project_id")
+@click.argument("project_ref")
 @click.pass_context
 @handle_errors
-def project_reopen(ctx, project_id):
-    """Reopen a project (Redmine >= 5.0)."""
+def project_reopen(ctx, project_ref):
+    """Reopen a project (Redmine >= 5.0).
+
+    Accepts an integer ID, a string identifier, or a full Redmine URL.
+    """
+    pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    try:
-        pid = int(project_id)
-    except ValueError:
-        pid = project_id
     rm.project.reopen(pid)
-    emit({"reopened": True, "project_id": project_id})
+    emit({"reopened": True, "project_id": pid})
 
 
 @project_group.command("archive")
-@click.argument("project_id")
+@click.argument("project_ref")
 @click.pass_context
 @handle_errors
-def project_archive(ctx, project_id):
-    """Archive a project (Redmine >= 5.0)."""
+def project_archive(ctx, project_ref):
+    """Archive a project (Redmine >= 5.0).
+
+    Accepts an integer ID, a string identifier, or a full Redmine URL.
+    """
+    pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    try:
-        pid = int(project_id)
-    except ValueError:
-        pid = project_id
     rm.project.archive(pid)
-    emit({"archived": True, "project_id": project_id})
+    emit({"archived": True, "project_id": pid})
 
 
 @project_group.command("unarchive")
-@click.argument("project_id")
+@click.argument("project_ref")
 @click.pass_context
 @handle_errors
-def project_unarchive(ctx, project_id):
-    """Unarchive a project (Redmine >= 5.0)."""
+def project_unarchive(ctx, project_ref):
+    """Unarchive a project (Redmine >= 5.0).
+
+    Accepts an integer ID, a string identifier, or a full Redmine URL.
+    """
+    pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    try:
-        pid = int(project_id)
-    except ValueError:
-        pid = project_id
     rm.project.unarchive(pid)
-    emit({"unarchived": True, "project_id": project_id})
+    emit({"unarchived": True, "project_id": pid})

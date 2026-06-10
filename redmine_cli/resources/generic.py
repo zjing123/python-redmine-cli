@@ -8,7 +8,7 @@ import click
 
 from ..output import emit, handle_errors
 from ..utils import parse_json_input, resourceset_to_list
-from ..context import get_redmine
+from ..context import get_redmine, resolve_ref
 from redminelib.resources import registry as resource_registry
 
 
@@ -21,14 +21,6 @@ def _get_manager(rm, resource_name):
             f"Unknown resource '{resource_name}'. "
             f"Use 'redmine-cli resource types' to see available resources."
         )
-
-
-def _coerce_id(resource_id):
-    """Try to convert resource_id to int, fall back to string."""
-    try:
-        return int(resource_id)
-    except ValueError:
-        return resource_id
 
 
 @click.group("resource")
@@ -54,21 +46,27 @@ def resource_types(ctx):
 
 @generic_group.command("get")
 @click.argument("resource_name")
-@click.argument("resource_id")
+@click.argument("resource_ref")
 @click.pass_context
 @handle_errors
-def resource_get(ctx, resource_name, resource_id):
-    """Get a single resource by ID.
+def resource_get(ctx, resource_name, resource_ref):
+    """Get a single resource by ID or URL.
+
+    \b
+    Accepts an integer ID, a string identifier, or a full Redmine URL.
+    When a URL is given, the profile is auto-detected from the URL.
 
     \b
     Examples:
       redmine-cli resource get issue 123
+      redmine-cli resource get issue https://redmine.example.com/issues/123
       redmine-cli resource get project my-project
       redmine-cli resource get user 5
     """
+    resource_id = resolve_ref(ctx, resource_ref)
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
-    result = manager.get(_coerce_id(resource_id))
+    result = manager.get(resource_id)
     emit(result.raw())
 
 
@@ -176,41 +174,51 @@ def resource_create(ctx, resource_name, json_data):
 
 @generic_group.command("update")
 @click.argument("resource_name")
-@click.argument("resource_id")
+@click.argument("resource_ref")
 @click.option(
     "--json", "json_data", required=True, help="JSON object with update fields"
 )
 @click.pass_context
 @handle_errors
-def resource_update(ctx, resource_name, resource_id, json_data):
+def resource_update(ctx, resource_name, resource_ref, json_data):
     """Update an existing resource.
+
+    \b
+    Accepts an integer ID or a full Redmine URL for the resource reference.
 
     \b
     Examples:
       redmine-cli resource update issue 123 --json '{"status_id": 3, "notes": "Fixed"}'
+      redmine-cli resource update issue https://redmine.example.com/issues/123 --json '{"status_id": 3}'
       redmine-cli resource update project test --json '{"name": "New Name"}'
     """
+    resource_id = resolve_ref(ctx, resource_ref)
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
     fields = parse_json_input(json_data)
-    manager.update(_coerce_id(resource_id), **fields)
+    manager.update(resource_id, **fields)
     emit({"updated": True, "resource": resource_name, "id": resource_id})
 
 
 @generic_group.command("delete")
 @click.argument("resource_name")
-@click.argument("resource_id")
+@click.argument("resource_ref")
 @click.pass_context
 @handle_errors
-def resource_delete(ctx, resource_name, resource_id):
+def resource_delete(ctx, resource_name, resource_ref):
     """Delete a resource.
+
+    \b
+    Accepts an integer ID or a full Redmine URL for the resource reference.
 
     \b
     Examples:
       redmine-cli resource delete issue 123
+      redmine-cli resource delete issue https://redmine.example.com/issues/123
       redmine-cli resource delete version 5
     """
+    resource_id = resolve_ref(ctx, resource_ref)
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
-    manager.delete(_coerce_id(resource_id))
+    manager.delete(resource_id)
     emit({"deleted": True, "resource": resource_name, "id": resource_id})
