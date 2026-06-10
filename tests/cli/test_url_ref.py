@@ -75,15 +75,40 @@ def test_resolve_profile_by_url_no_match(tmp_path, monkeypatch):
 
 
 def test_resolve_ref_integer():
-    ctx = _mock_ctx()
+    """Plain integer requires -p or REDMINE_URL to be set."""
+    ctx = _mock_ctx(profile="staging")
     assert resolve_ref(ctx, "123") == 123
     assert resolve_ref(ctx, "99999") == 99999
 
 
-def test_resolve_ref_string_identifier():
+def test_resolve_ref_integer_with_url_override():
+    """Plain integer works when _url is set (via REDMINE_URL env var)."""
     ctx = _mock_ctx()
+    ctx.obj["_url"] = "https://redmine.test/"
+    assert resolve_ref(ctx, "123") == 123
+
+
+def test_resolve_ref_integer_without_profile_or_url_raises():
+    """Plain integer without -p and without REDMINE_URL should raise UsageError."""
+    import click
+    ctx = _mock_ctx()
+    with pytest.raises(click.UsageError, match="Profile is required"):
+        resolve_ref(ctx, "123")
+
+
+def test_resolve_ref_string_identifier():
+    """String identifier requires -p or REDMINE_URL to be set."""
+    ctx = _mock_ctx(profile="staging")
     assert resolve_ref(ctx, "my-project") == "my-project"
     assert resolve_ref(ctx, "current") == "current"
+
+
+def test_resolve_ref_string_without_profile_or_url_raises():
+    """String identifier without -p and without REDMINE_URL should raise UsageError."""
+    import click
+    ctx = _mock_ctx()
+    with pytest.raises(click.UsageError, match="Profile is required"):
+        resolve_ref(ctx, "my-project")
 
 
 def test_resolve_ref_url_extracts_id(tmp_path, monkeypatch):

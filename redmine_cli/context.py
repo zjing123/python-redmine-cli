@@ -44,10 +44,6 @@ def resolve_ref(ctx, ref):
     """
     ref_str = str(ref).strip()
 
-    # Pure numeric -> return as int
-    if ref_str.isdigit():
-        return int(ref_str)
-
     # Try as URL
     parsed = urlparse(ref_str)
     if parsed.scheme and parsed.netloc:
@@ -74,6 +70,20 @@ def resolve_ref(ctx, ref):
                     )
 
             return resource_id
+
+    # Non-URL reference (integer, string identifier):
+    # requires explicit profile (-p / REDMINE_PROFILE) or URL override (--url / REDMINE_URL)
+    if not ctx.obj.get("_profile") and not ctx.obj.get("_url"):
+        raise click.UsageError(
+            "Profile is required (-p or REDMINE_URL) when not using a full URL.\n"
+            "Usage: redmine-cli -p <profile> issue get <id>\n"
+            "   or: redmine-cli issue get <url>\n"
+            "   or: REDMINE_URL=... redmine-cli issue get <id>"
+        )
+
+    # Pure numeric -> return as int
+    if ref_str.isdigit():
+        return int(ref_str)
 
     # Return as-is (string identifier like "current", "my-project")
     return ref_str
