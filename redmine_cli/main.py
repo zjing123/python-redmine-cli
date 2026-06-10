@@ -131,15 +131,16 @@ def config_test(ctx):
     help="Show a specific profile's config. Shows all profiles if omitted.",
 )
 @click.option(
-    "--json",
-    "as_json",
+    "--print",
+    "as_table",
     is_flag=True,
-    help="Output JSON for agent/script usage.",
+    help="Print a human-readable table instead of JSON.",
 )
-def config_list(profile, as_json):
+def config_list(profile, as_table):
     """List config values (secrets are masked).
 
-    Without -p, shows all profiles. Secrets (api_key, password) show only last 4 chars.
+    Default output is JSON. Use --print for a human-readable table.
+    Without --profile, shows all profiles. Secrets (api_key, password) show only last 4 chars.
     """
     data = load_config_file()
     targets = {}
@@ -171,40 +172,42 @@ def config_list(profile, as_json):
             }
         )
 
-    if as_json:
-        emit({"profiles": rows})
-        return
-
     if not rows:
-        click.echo("No config profiles found.")
+        if as_table:
+            click.echo("No config profiles found.")
+        else:
+            emit({"profiles": []})
         return
 
-    headers = ["PROFILE", "URL", "AUTH", "API_KEY", "USERNAME", "PASSWORD"]
-    keys = ["profile", "url", "auth", "api_key", "username", "password"]
-    widths = [
-        max(len(header), *(len(str(row[key])) for row in rows))
-        for header, key in zip(headers, keys)
-    ]
-    border = "+" + "+".join("-" * (width + 2) for width in widths) + "+"
-    click.echo(border)
-    click.echo(
-        "|"
-        + "|".join(
-            f" {header.ljust(width)} " for header, width in zip(headers, widths)
-        )
-        + "|"
-    )
-    click.echo(border)
-    for row in rows:
+    if as_table:
+        headers = ["PROFILE", "URL", "AUTH", "API_KEY", "USERNAME", "PASSWORD"]
+        keys = ["profile", "url", "auth", "api_key", "username", "password"]
+        widths = [
+            max(len(header), *(len(str(row[key])) for row in rows))
+            for header, key in zip(headers, keys)
+        ]
+        border = "+" + "+".join("-" * (width + 2) for width in widths) + "+"
+        click.echo(border)
         click.echo(
             "|"
             + "|".join(
-                f" {str(row[key]).ljust(width)} "
-                for key, width in zip(keys, widths)
+                f" {header.ljust(width)} " for header, width in zip(headers, widths)
             )
             + "|"
         )
         click.echo(border)
+        for row in rows:
+            click.echo(
+                "|"
+                + "|".join(
+                    f" {str(row[key]).ljust(width)} "
+                    for key, width in zip(keys, widths)
+                )
+                + "|"
+            )
+            click.echo(border)
+    else:
+        emit({"profiles": rows})
 
 
 @config_group.command("set")

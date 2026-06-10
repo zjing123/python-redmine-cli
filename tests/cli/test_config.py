@@ -283,7 +283,27 @@ def test_config_update_nonexistent_profile(tmp_path, monkeypatch):
     assert result.exit_code != 0
 
 
-def test_config_list_shows_all_profiles_as_table(tmp_path, monkeypatch):
+def test_config_list_default_is_json(tmp_path, monkeypatch):
+    initial = {
+        "default": {"url": "https://default.test", "api_key": "defaultkey"},
+        "profiles": {
+            "staging": {"url": "https://staging.test", "api_key": "stagingkey"},
+        },
+    }
+    cf = _config_file(tmp_path, initial)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(cli, ["config", "list"])
+    assert result.exit_code == 0
+    data = parse_output(result.output)
+    assert data["ok"] is True
+    profiles = data["data"]["profiles"]
+    assert len(profiles) == 2
+    assert profiles[0]["profile"] == "default"
+    assert profiles[1]["profile"] == "staging"
+
+
+def test_config_list_print_table(tmp_path, monkeypatch):
     initial = {
         "default": {"url": "https://default.test", "api_key": "defaultkey"},
         "profiles": {
@@ -298,7 +318,7 @@ def test_config_list_shows_all_profiles_as_table(tmp_path, monkeypatch):
     cf = _config_file(tmp_path, initial)
     monkeypatch.setenv("REDMINE_CONFIG", str(cf))
     runner = CliRunner()
-    result = runner.invoke(cli, ["config", "list"])
+    result = runner.invoke(cli, ["config", "list", "--print"])
     assert result.exit_code == 0
     assert "PROFILE" in result.output
     assert "default" in result.output
@@ -309,45 +329,7 @@ def test_config_list_shows_all_profiles_as_table(tmp_path, monkeypatch):
     assert "secret" not in result.output
 
 
-def test_config_list_json(tmp_path, monkeypatch):
-    initial = {
-        "profiles": {
-            "staging": {"url": "https://staging.test", "api_key": "stagingkey"},
-            "prod": {
-                "url": "https://prod.test",
-                "username": "admin",
-                "password": "secret",
-            },
-        }
-    }
-    cf = _config_file(tmp_path, initial)
-    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
-    runner = CliRunner()
-    result = runner.invoke(cli, ["config", "list", "--json"])
-    assert result.exit_code == 0
-    data = parse_output(result.output)
-    assert data["ok"] is True
-    assert data["data"]["profiles"] == [
-        {
-            "profile": "prod",
-            "url": "https://prod.test",
-            "auth": "password",
-            "api_key": "",
-            "username": "admin",
-            "password": "****cret",
-        },
-        {
-            "profile": "staging",
-            "url": "https://staging.test",
-            "auth": "api_key",
-            "api_key": "****gkey",
-            "username": "",
-            "password": "",
-        },
-    ]
-
-
-def test_config_list_json_specific_profile(tmp_path, monkeypatch):
+def test_config_list_specific_profile(tmp_path, monkeypatch):
     initial = {
         "profiles": {
             "staging": {"url": "https://staging.test", "api_key": "stagingkey"},
@@ -357,7 +339,7 @@ def test_config_list_json_specific_profile(tmp_path, monkeypatch):
     cf = _config_file(tmp_path, initial)
     monkeypatch.setenv("REDMINE_CONFIG", str(cf))
     runner = CliRunner()
-    result = runner.invoke(cli, ["config", "list", "-p", "prod", "--json"])
+    result = runner.invoke(cli, ["config", "list", "-p", "prod"])
     assert result.exit_code == 0
     data = parse_output(result.output)
     assert data["data"]["profiles"] == [
@@ -372,7 +354,7 @@ def test_config_list_json_specific_profile(tmp_path, monkeypatch):
     ]
 
 
-def test_config_list_json_default_profile(tmp_path, monkeypatch):
+def test_config_list_default_profile(tmp_path, monkeypatch):
     initial = {
         "default": {"url": "https://default.test", "api_key": "defaultkey"},
         "profiles": {
@@ -382,7 +364,7 @@ def test_config_list_json_default_profile(tmp_path, monkeypatch):
     cf = _config_file(tmp_path, initial)
     monkeypatch.setenv("REDMINE_CONFIG", str(cf))
     runner = CliRunner()
-    result = runner.invoke(cli, ["config", "list", "-p", "default", "--json"])
+    result = runner.invoke(cli, ["config", "list", "-p", "default"])
     assert result.exit_code == 0
     data = parse_output(result.output)
     assert data["data"]["profiles"] == [
