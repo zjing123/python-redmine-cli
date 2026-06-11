@@ -5,7 +5,7 @@
 ## 特性
 
 - **JSON First** — 所有输出为 JSON，`ok` 字段标识成功/失败
-- **零交互** — 无交互式提示，所有参数通过 flags 或 `--json` 传入
+- **零交互** — 无交互式提示，所有参数通过 flags、`--json` 或 `--stdin` 传入
 - **Agent 友好** — 统一响应格式，便于程序解析
 - **动态资源路由** — 通过 `resource` 命令操作任意 Redmine 资源类型
 - **多实例管理** — 支持 profile 配置多套 Redmine 环境，`--all-profiles` 一键遍历
@@ -192,10 +192,14 @@ redmine-cli issue create --project-id 1 --subject "Bug report"
 redmine-cli issue create --project-id 1 --subject "新功能" --tracker-id 2 --assigned-to-id 5
 redmine-cli issue create --json '{"project_id":1,"subject":"标题","description":"内容","custom_fields":[{"id":1,"value":"值"}]}'
 
+# 通过 stdin 传入 JSON（避免 shell 转义问题，推荐 Agent 使用）
+echo '{"project_id":1,"subject":"标题"}' | redmine-cli issue create --stdin
+
 # 更新
 redmine-cli issue update 123 --status-id 3 --notes "已修复"
 redmine-cli issue update 123 --assigned-to-id 5
 redmine-cli issue update 123 --json '{"status_id":3,"notes":"通过 JSON 更新"}'
+echo '{"status_id":3}' | redmine-cli issue update 123 --stdin
 
 # 删除
 redmine-cli issue delete 123
@@ -221,9 +225,11 @@ redmine-cli time-entry list --issue-id 123                     # 某 issue 的�
 
 # 创建
 redmine-cli time-entry create --json '{"issue_id":123,"hours":2.5,"activity_id":9,"comments":"开发"}'
+echo '{"issue_id":123,"hours":2.5}' | redmine-cli time-entry create --stdin
 
 # 更新
 redmine-cli time-entry update 1 --json '{"hours":3,"comments":"修正"}'
+echo '{"hours":3}' | redmine-cli time-entry update 1 --stdin
 
 # 删除
 redmine-cli time-entry delete 1
@@ -296,12 +302,14 @@ redmine-cli resource filter time-entry --json '{"user_id":1,"from_date":"2026-04
 redmine-cli resource filter enumeration --json '{"resource":"time_entry_activities"}'
 redmine-cli resource filter project_membership --json '{"project_id":1}'
 
-# 创建
+# 创建（--json 或 --stdin，二选一）
 redmine-cli resource create issue --json '{"project_id":1,"subject":"标题"}'
+echo '{"project_id":1,"subject":"标题"}' | redmine-cli resource create issue --stdin
 redmine-cli resource create version --json '{"project_id":1,"name":"v1.0"}'
 
-# 更新
+# 更新（--json 或 --stdin，二选一）
 redmine-cli resource update issue 123 --json '{"status_id":3,"notes":"已解决"}'
+echo '{"status_id":3}' | redmine-cli resource update issue 123 --stdin
 
 # 删除
 redmine-cli resource delete issue 123
@@ -363,6 +371,7 @@ redmine-cli issue list --assigned-to-me --all-profiles         # 遍历所有实
 redmine-cli issue get 123 -i journals                          # 查看详情+评论
 redmine-cli issue update 123 --status-id 3 --notes "已修复"    # 更新状态
 redmine-cli time-entry create --json '...'                     # 登记工时
+echo '...' | redmine-cli issue create --stdin                  # 通过 stdin 传入 JSON（推荐 Agent 使用）
 ```
 
 Agent 解析逻辑：
@@ -401,7 +410,7 @@ python-redmine-cli/
 │   ├── context.py            # 延迟连接初始化
 │   ├── config.py             # 配置管理（文件/环境变量/profiles）
 │   ├── output.py             # JSON 输出/错误处理
-│   ├── utils.py              # 序列化工具
+│   ├── utils.py              # 序列化工具 + stdin/JSON 解析
 │   └── resources/
 │       ├── issue.py          # Issue CRUD + --assigned-to-me + --all-profiles
 │       ├── project.py        # Project CRUD
@@ -415,6 +424,7 @@ python-redmine-cli/
     ├── test_config.py
     ├── test_utils.py
     ├── test_issue_cli.py
+    ├── test_stdin.py
     └── test_generic_cli.py
 ```
 

@@ -59,9 +59,9 @@ Agent 在执行 create/update/delete 前无法验证参数是否正确。dry-run
 
 Agent 不知道创建资源需要哪些必填字段、有哪些可选值。`redmine-cli resource schema issue` 应返回 required/optional 字段列表及枚举值，让 Agent 一次做对。
 
-### 7. 无 stdin 管道模式
+### 7. ~~无 stdin 管道模式~~ ✅ 已完成
 
-当前构造复杂 JSON 参数只能通过 `--json '...'`，shell 转义痛苦。stdin 模式 `echo '...' | redmine-cli issue create --stdin` 对 Agent 远比 `--json` 拼接字符串可靠。
+所有 mutation 命令已支持 `--stdin` 标志，与 `--json` 互斥。用法：`echo '...' | redmine-cli issue create --stdin`
 
 ---
 

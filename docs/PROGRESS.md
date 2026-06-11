@@ -43,7 +43,7 @@
 - ✅ `--assigned-to-me` 快捷标志
 - ✅ `--all-profiles` 多实例遍历查询
 - ✅ 配置文件路径改为 `~/.config/redmine-cli/config.yaml`
-- ✅ 22 个单元测试全部通过
+- ✅ 22+ 个单元测试全部通过
 - ✅ 真实 Redmine 环境端到端测试通过（config test / issue CRUD / time-entry / project / user / wiki-page / search / generic resource / delete）
 - ✅ 全局安装验证通过（`uv tool install`，安装到 `/home/liuchuan/.local/bin/redmine-cli`）
 - ✅ README.md 完整文档
@@ -55,7 +55,7 @@
 - `time-entry list` 也添加 `--assigned-to-me` 和 `--all-profiles` 支持
 - 更多资源类型的专用命令（version / news / issue_category 等）
 - `--output=text/csv/table` 多种输出格式
-- stdin 管道模式（`echo '{}' | redmine-cli issue create --json -`）
+- ✅ stdin 管道模式（`echo '{}' | redmine-cli issue create --stdin`）
 - 批量操作命令
 - Schema 发现命令（`redmine-cli resource schema issue`）
 - MCP/Skill 集成封装
@@ -74,7 +74,7 @@
 │   ├── context.py                                                 # get_redmine() 延迟连接初始化
 │   ├── config.py                                                  # 配置管理（文件/环境变量/profiles），路径 ~/.config/redmine-cli/config.yaml
 │   ├── output.py                                                  # JSON emit() + handle_errors 装饰器 + 错误码映射
-│   ├── utils.py                                                   # 序列化工具（serialize/resourceset_to_list/parse_json_input/build_fields）
+│   ├── utils.py                                                   # 序列化工具（serialize/resourceset_to_list/parse_json_input/build_fields/resolve_json_data）
 │   └── resources/
 │       ├── __init__.py
 │       ├── issue.py                                               # Issue CRUD + --assigned-to-me + --all-profiles
@@ -92,6 +92,7 @@
         ├── test_config.py
         ├── test_utils.py
         ├── test_issue_cli.py
+        ├── test_stdin.py
         └── test_generic_cli.py
 
 /home/liuchuan/Documents/liuchuan/python-redmine/                  # 第三方依赖库（不修改）
