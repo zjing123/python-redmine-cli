@@ -2,9 +2,9 @@
 
 import click
 
-from ..output import emit, handle_errors
+from ..output import emit, handle_errors, emit_dry_run
 from ..utils import parse_json_input, resourceset_to_list, build_fields
-from ..context import get_redmine, resolve_ref
+from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
 
 
 @click.group("time-entry")
@@ -153,6 +153,11 @@ def time_entry_create(
             comments=comments,
         )
 
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "time_entry", "create")
+        emit_dry_run("create", "time_entry", DRY_RUN_METHODS["create"], url, payload=fields)
+        return
+
     result = rm.time_entry.create(**fields)
     emit(result.raw())
 
@@ -189,6 +194,11 @@ def time_entry_update(ctx, entry_ref, json_data, hours, activity_id, comments, s
             spent_on=spent_on,
         )
 
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "time_entry", "update", id=entry_id)
+        emit_dry_run("update", "time_entry", DRY_RUN_METHODS["update"], url, payload=fields)
+        return
+
     rm.time_entry.update(int(entry_id), **fields)
     emit({"updated": True, "resource": "time_entry", "id": entry_id})
 
@@ -210,6 +220,10 @@ def time_entry_delete(ctx, entry_ref):
     """
     entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "time_entry", "delete", id=entry_id)
+        emit_dry_run("delete", "time_entry", DRY_RUN_METHODS["delete"], url)
+        return
     rm.time_entry.delete(int(entry_id))
     emit({"deleted": True, "resource": "time_entry", "id": entry_id})
 

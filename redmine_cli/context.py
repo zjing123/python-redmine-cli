@@ -8,6 +8,66 @@ import click
 from .config import create_redmine, resolve_profile_by_url
 
 
+# URL patterns for dry-run output.
+# Keys are (resource_type, operation), values are URL path templates.
+RESOURCE_URLS = {
+    ("issue", "create"): "/issues.json",
+    ("issue", "update"): "/issues/{id}.json",
+    ("issue", "delete"): "/issues/{id}.json",
+    ("issue", "copy"): "/issues.json",
+    ("issue", "add_watcher"): "/issues/{id}/watchers.json",
+    ("issue", "remove_watcher"): "/issues/{id}/watchers/{user_id}.json",
+    ("project", "create"): "/projects.json",
+    ("project", "update"): "/projects/{id}.json",
+    ("project", "delete"): "/projects/{id}.json",
+    ("project", "close"): "/projects/{id}/close.json",
+    ("project", "reopen"): "/projects/{id}/reopen.json",
+    ("project", "archive"): "/projects/{id}/archive.json",
+    ("project", "unarchive"): "/projects/{id}/unarchive.json",
+    ("user", "create"): "/users.json",
+    ("user", "update"): "/users/{id}.json",
+    ("user", "delete"): "/users/{id}.json",
+    ("time_entry", "create"): "/time_entries.json",
+    ("time_entry", "update"): "/time_entries/{id}.json",
+    ("time_entry", "delete"): "/time_entries/{id}.json",
+    ("wiki_page", "create"): "/projects/{project_id}/wiki/{title}.json",
+    ("wiki_page", "update"): "/projects/{project_id}/wiki/{title}.json",
+    ("wiki_page", "delete"): "/projects/{project_id}/wiki/{title}.json",
+}
+
+# HTTP methods for each operation type.
+DRY_RUN_METHODS = {
+    "create": "POST",
+    "update": "PUT",
+    "delete": "DELETE",
+    "close": "PUT",
+    "reopen": "PUT",
+    "archive": "PUT",
+    "unarchive": "PUT",
+    "add_watcher": "POST",
+    "remove_watcher": "DELETE",
+    "copy": "POST",
+}
+
+
+def build_dry_run_url(base_url, resource_type, operation, **kwargs):
+    """Build the API URL that would be called for a given operation.
+
+    :param base_url: Redmine server base URL (e.g. 'https://redmine.example.com').
+    :param resource_type: Resource type (e.g. 'issue', 'project').
+    :param operation: Operation name (e.g. 'create', 'update').
+    :param kwargs: URL template variables (e.g. id=123, project_id=1).
+    :returns: Full URL string.
+    """
+    pattern = RESOURCE_URLS.get((resource_type, operation))
+    if pattern:
+        return base_url.rstrip("/") + pattern.format(**kwargs)
+    # Generic fallback for unknown resource types
+    if operation == "create":
+        return f"{base_url.rstrip('/')}/{resource_type}s.json"
+    return f"{base_url.rstrip('/')}/{resource_type}s/{kwargs.get('id', '')}.json"
+
+
 def get_redmine(ctx):
     """Lazily create Redmine instance on first use."""
     if "redmine" not in ctx.obj:

@@ -2,9 +2,9 @@
 
 import click
 
-from ..output import emit, handle_errors
+from ..output import emit, handle_errors, emit_dry_run
 from ..utils import parse_json_input, resourceset_to_list, build_fields
-from ..context import get_redmine, resolve_ref
+from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
 from ..config import create_redmine, list_profiles, load_config_file
 
 
@@ -294,6 +294,11 @@ def issue_create(
         if watcher_user_ids:
             fields["watcher_user_ids"] = [int(x) for x in watcher_user_ids.split(",")]
 
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "issue", "create")
+        emit_dry_run("create", "issue", DRY_RUN_METHODS["create"], url, payload=fields)
+        return
+
     result = rm.issue.create(**fields)
     emit(result.raw())
 
@@ -357,6 +362,11 @@ def issue_update(
         if private_notes:
             fields["private_notes"] = True
 
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "issue", "update", id=issue_id)
+        emit_dry_run("update", "issue", DRY_RUN_METHODS["update"], url, payload=fields)
+        return
+
     rm.issue.update(issue_id, **fields)
     emit({"updated": True, "resource": "issue", "id": issue_id})
 
@@ -378,6 +388,10 @@ def issue_delete(ctx, issue_ref):
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "issue", "delete", id=issue_id)
+        emit_dry_run("delete", "issue", DRY_RUN_METHODS["delete"], url)
+        return
     rm.issue.delete(issue_id)
     emit({"deleted": True, "resource": "issue", "id": issue_id})
 
@@ -400,6 +414,10 @@ def issue_add_watcher(ctx, issue_ref, user_id):
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "issue", "add_watcher", id=issue_id)
+        emit_dry_run("add_watcher", "issue", DRY_RUN_METHODS["add_watcher"], url, payload={"user_id": user_id})
+        return
     issue = rm.issue.get(issue_id)
     issue.watcher.add(user_id)
     emit({"resource": "issue", "id": issue_id, "watcher_added": user_id})
@@ -423,6 +441,10 @@ def issue_remove_watcher(ctx, issue_ref, user_id):
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "issue", "remove_watcher", id=issue_id, user_id=user_id)
+        emit_dry_run("remove_watcher", "issue", DRY_RUN_METHODS["remove_watcher"], url)
+        return
     issue = rm.issue.get(issue_id)
     issue.watcher.remove(user_id)
     emit({"resource": "issue", "id": issue_id, "watcher_removed": user_id})
@@ -456,6 +478,17 @@ def issue_copy(ctx, issue_ref, project_id, link_original, includes):
     if project_id:
         kwargs["project_id"] = project_id
     inc = tuple(includes.split(",")) if includes else ()
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "issue", "copy")
+        copy_fields = {"copy_from": issue_id}
+        if project_id:
+            copy_fields["project_id"] = project_id
+        if link_original:
+            copy_fields["link_copy"] = True
+        for i in inc or ("subtasks", "attachments"):
+            copy_fields[f"copy_{i}"] = True
+        emit_dry_run("copy", "issue", DRY_RUN_METHODS["copy"], url, payload=copy_fields)
+        return
     result = rm.issue.get(issue_id).copy(
         link_original=link_original, include=inc, **kwargs
     )

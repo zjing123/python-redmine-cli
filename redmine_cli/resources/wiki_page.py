@@ -2,9 +2,9 @@
 
 import click
 
-from ..output import emit, handle_errors
+from ..output import emit, handle_errors, emit_dry_run
 from ..utils import parse_json_input, resourceset_to_list, build_fields
-from ..context import get_redmine
+from ..context import get_redmine, build_dry_run_url, DRY_RUN_METHODS
 
 
 @click.group("wiki-page")
@@ -87,6 +87,11 @@ def wiki_page_create(ctx, title, project_id, json_data, text, comments):
     else:
         fields = build_fields(text=text, comments=comments)
 
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "wiki_page", "create", project_id=project_id, title=title)
+        emit_dry_run("create", "wiki_page", DRY_RUN_METHODS["create"], url, payload=fields)
+        return
+
     result = rm.wiki_page.create(title=title, project_id=project_id, **fields)
     emit(result.raw())
 
@@ -107,6 +112,11 @@ def wiki_page_update(ctx, title, project_id, json_data, text, comments):
     else:
         fields = build_fields(text=text, comments=comments)
 
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "wiki_page", "update", project_id=project_id, title=title)
+        emit_dry_run("update", "wiki_page", DRY_RUN_METHODS["update"], url, payload=fields)
+        return
+
     rm.wiki_page.update(title, project_id=project_id, **fields)
     emit({"updated": True, "resource": "wiki_page", "title": title, "project_id": project_id})
 
@@ -119,6 +129,10 @@ def wiki_page_update(ctx, title, project_id, json_data, text, comments):
 def wiki_page_delete(ctx, title, project_id):
     """Delete a wiki page permanently."""
     rm = get_redmine(ctx)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "wiki_page", "delete", project_id=project_id, title=title)
+        emit_dry_run("delete", "wiki_page", DRY_RUN_METHODS["delete"], url)
+        return
     rm.wiki_page.delete(title, project_id=project_id)
     emit({"deleted": True, "resource": "wiki_page", "title": title, "project_id": project_id})
 

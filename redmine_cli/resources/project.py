@@ -2,9 +2,9 @@
 
 import click
 
-from ..output import emit, handle_errors
+from ..output import emit, handle_errors, emit_dry_run
 from ..utils import parse_json_input, resourceset_to_list, build_fields
-from ..context import get_redmine, resolve_ref
+from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
 
 
 @click.group("project")
@@ -145,6 +145,11 @@ def project_create(
         if tracker_ids:
             fields["tracker_ids"] = [int(x) for x in tracker_ids.split(",")]
 
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "project", "create")
+        emit_dry_run("create", "project", DRY_RUN_METHODS["create"], url, payload=fields)
+        return
+
     result = rm.project.create(**fields)
     emit(result.raw())
 
@@ -182,6 +187,11 @@ def project_update(ctx, project_ref, json_data, name, description, is_public, pa
             parent_id=parent_id,
         )
 
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "project", "update", id=pid)
+        emit_dry_run("update", "project", DRY_RUN_METHODS["update"], url, payload=fields)
+        return
+
     rm.project.update(pid, **fields)
     emit({"updated": True, "resource": "project", "id": pid})
 
@@ -204,6 +214,10 @@ def project_delete(ctx, project_ref):
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "project", "delete", id=pid)
+        emit_dry_run("delete", "project", DRY_RUN_METHODS["delete"], url)
+        return
     rm.project.delete(pid)
     emit({"deleted": True, "resource": "project", "id": pid})
 
@@ -226,6 +240,10 @@ def project_close(ctx, project_ref):
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "project", "close", id=pid)
+        emit_dry_run("close", "project", DRY_RUN_METHODS["close"], url)
+        return
     rm.project.close(pid)
     emit({"closed": True, "resource": "project", "id": pid})
 
@@ -248,6 +266,10 @@ def project_reopen(ctx, project_ref):
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "project", "reopen", id=pid)
+        emit_dry_run("reopen", "project", DRY_RUN_METHODS["reopen"], url)
+        return
     rm.project.reopen(pid)
     emit({"reopened": True, "resource": "project", "id": pid})
 
@@ -270,6 +292,10 @@ def project_archive(ctx, project_ref):
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "project", "archive", id=pid)
+        emit_dry_run("archive", "project", DRY_RUN_METHODS["archive"], url)
+        return
     rm.project.archive(pid)
     emit({"archived": True, "resource": "project", "id": pid})
 
@@ -292,6 +318,10 @@ def project_unarchive(ctx, project_ref):
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "project", "unarchive", id=pid)
+        emit_dry_run("unarchive", "project", DRY_RUN_METHODS["unarchive"], url)
+        return
     rm.project.unarchive(pid)
     emit({"unarchived": True, "resource": "project", "id": pid})
 

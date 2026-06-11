@@ -59,6 +59,31 @@ def emit(data, total_count=None, limit=None, offset=None, fields=None):
     click.echo(json.dumps(result, default=str, ensure_ascii=False))
 
 
+def emit_dry_run(operation, resource_type, method, url, payload=None):
+    """Emit a dry-run response showing what would be sent to the API.
+
+    Outputs the same {"ok": true, "data": ...} envelope but with an extra
+    top-level "dry_run": true key so consumers can detect it programmatically.
+
+    :param operation: 'create', 'update', 'delete', 'close', 'reopen', etc.
+    :param resource_type: 'issue', 'project', 'user', etc.
+    :param method: HTTP method ('POST', 'PUT', 'DELETE').
+    :param url: The full URL that would be called.
+    :param payload: Optional dict of fields that would be sent as the request body.
+    """
+    data = {
+        "dry_run": True,
+        "operation": operation,
+        "resource_type": resource_type,
+        "method": method,
+        "url": url,
+    }
+    if payload:
+        data["payload"] = payload
+    result = {"ok": True, "dry_run": True, "data": data}
+    click.echo(json.dumps(result, default=str, ensure_ascii=False))
+
+
 def emit_error(exc):
     """Emit an error JSON response to stdout and exit with non-zero code."""
     result = {

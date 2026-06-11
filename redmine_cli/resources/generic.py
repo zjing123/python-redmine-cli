@@ -6,9 +6,9 @@ Provides a uniform interface for agents that don't need resource-specific comman
 
 import click
 
-from ..output import emit, handle_errors
+from ..output import emit, handle_errors, emit_dry_run
 from ..utils import parse_json_input, resourceset_to_list
-from ..context import get_redmine, resolve_ref
+from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
 from redminelib.resources import registry as resource_registry
 
 
@@ -176,6 +176,10 @@ def resource_create(ctx, resource_name, json_data):
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
     fields = parse_json_input(json_data)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, resource_name, "create")
+        emit_dry_run("create", resource_name, DRY_RUN_METHODS["create"], url, payload=fields)
+        return
     result = manager.create(**fields)
     emit(result.raw())
 
@@ -204,6 +208,10 @@ def resource_update(ctx, resource_name, resource_ref, json_data):
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
     fields = parse_json_input(json_data)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, resource_name, "update", id=resource_id)
+        emit_dry_run("update", resource_name, DRY_RUN_METHODS["update"], url, payload=fields)
+        return
     manager.update(resource_id, **fields)
     emit({"updated": True, "resource": resource_name, "id": resource_id})
 
@@ -228,6 +236,10 @@ def resource_delete(ctx, resource_name, resource_ref):
     resource_id = resolve_ref(ctx, resource_ref)
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, resource_name, "delete", id=resource_id)
+        emit_dry_run("delete", resource_name, DRY_RUN_METHODS["delete"], url)
+        return
     manager.delete(resource_id)
     emit({"deleted": True, "resource": resource_name, "id": resource_id})
 

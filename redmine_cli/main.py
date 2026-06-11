@@ -32,8 +32,13 @@ from .resources import issue, project, user, time_entry, wiki_page, generic
     envvar="REDMINE_API_KEY",
     help="Override Redmine API key for this invocation",
 )
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would be sent to the API without executing",
+)
 @click.pass_context
-def cli(ctx, profile, url, api_key):
+def cli(ctx, profile, url, api_key, dry_run):
     """Redmine CLI - Agent-friendly command line interface for Redmine.
 
     \b
@@ -57,6 +62,7 @@ def cli(ctx, profile, url, api_key):
     ctx.obj["_profile"] = profile
     ctx.obj["_url"] = url
     ctx.obj["_api_key"] = api_key
+    ctx.obj["_dry_run"] = dry_run
 
 
 # --- config commands ---

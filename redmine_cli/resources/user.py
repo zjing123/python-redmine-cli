@@ -2,9 +2,9 @@
 
 import click
 
-from ..output import emit, handle_errors
+from ..output import emit, handle_errors, emit_dry_run
 from ..utils import parse_json_input, resourceset_to_list, build_fields
-from ..context import get_redmine, resolve_ref
+from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
 
 
 @click.group("user")
@@ -164,6 +164,11 @@ def user_create(
         if send_information:
             fields["send_information"] = True
 
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "user", "create")
+        emit_dry_run("create", "user", DRY_RUN_METHODS["create"], url, payload=fields)
+        return
+
     result = rm.user.create(**fields)
     emit(result.raw())
 
@@ -205,6 +210,11 @@ def user_update(
         if must_change_password:
             fields["must_change_passwd"] = True
 
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "user", "update", id=uid)
+        emit_dry_run("update", "user", DRY_RUN_METHODS["update"], url, payload=fields)
+        return
+
     rm.user.update(int(uid), **fields)
     emit({"updated": True, "resource": "user", "id": uid})
 
@@ -226,6 +236,10 @@ def user_delete(ctx, user_ref):
     """
     uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)
+    if ctx.obj.get("_dry_run"):
+        url = build_dry_run_url(rm.url, "user", "delete", id=uid)
+        emit_dry_run("delete", "user", DRY_RUN_METHODS["delete"], url)
+        return
     rm.user.delete(int(uid))
     emit({"deleted": True, "resource": "user", "id": uid})
 
