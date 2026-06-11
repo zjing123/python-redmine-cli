@@ -257,3 +257,20 @@ def user_fields(ctx):
     from ..fields import get_resource_fields
 
     emit(get_resource_fields("user"))
+
+
+@user_group.command("schema")
+@click.pass_context
+@handle_errors
+def user_schema(ctx):
+    """Show creation schema for users.
+
+    Returns required fields, optional fields, read-only fields, and ID fields.
+
+    \b
+    Example:
+      redmine-cli user schema
+    """
+    from ..schema import get_resource_schema
+
+    emit(get_resource_schema("user"))

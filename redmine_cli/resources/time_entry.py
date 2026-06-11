@@ -241,3 +241,31 @@ def time_entry_fields(ctx):
     from ..fields import get_resource_fields
 
     emit(get_resource_fields("time_entry"))
+
+
+@time_entry_group.command("schema")
+@click.option(
+    "--live",
+    is_flag=True,
+    help="Fetch live activity enum from Redmine",
+)
+@click.pass_context
+@handle_errors
+def time_entry_schema(ctx, live):
+    """Show creation schema for time entries.
+
+    Returns required fields, optional fields, read-only fields, and ID fields.
+    Use --live to also fetch time entry activities from Redmine.
+
+    \b
+    Examples:
+      redmine-cli time-entry schema
+      redmine-cli -p prod time-entry schema --live
+    """
+    from ..schema import get_resource_schema, get_live_enums
+
+    schema = get_resource_schema("time_entry")
+    if live:
+        rm = get_redmine(ctx)
+        schema["enums"] = get_live_enums(rm, "time_entry")
+    emit(schema)

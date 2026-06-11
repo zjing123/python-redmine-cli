@@ -266,3 +266,43 @@ def resource_fields(ctx, resource_name):
         emit(get_resource_fields(resource_name))
     except ValueError as e:
         raise click.BadParameter(str(e))
+
+
+@generic_group.command("schema")
+@click.argument("resource_name")
+@click.option(
+    "--live",
+    is_flag=True,
+    help="Fetch live enum values (trackers, statuses, priorities) from Redmine",
+)
+@click.pass_context
+@handle_errors
+def resource_schema(ctx, resource_name, live):
+    """Show creation schema for a resource type.
+
+    Returns required fields, optional fields, read-only fields, and ID fields.
+    Use --live to also fetch enum values (trackers, statuses, priorities) from
+    the connected Redmine instance.
+
+    No connection required without --live.
+
+    \b
+    Examples:
+      redmine-cli resource schema issue
+      redmine-cli resource schema project
+      redmine-cli -p prod resource schema issue --live
+      redmine-cli resource schema wiki_page
+    """
+    from ..schema import get_resource_schema, get_live_enums
+
+    try:
+        schema = get_resource_schema(resource_name)
+    except ValueError as e:
+        raise click.BadParameter(str(e))
+
+    if live:
+        rm = get_redmine(ctx)
+        from ..schema import get_live_enums as _get_enums
+        schema["enums"] = _get_enums(rm, resource_name)
+
+    emit(schema)

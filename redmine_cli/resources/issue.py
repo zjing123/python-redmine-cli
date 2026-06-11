@@ -511,3 +511,31 @@ def issue_fields(ctx):
     from ..fields import get_resource_fields
 
     emit(get_resource_fields("issue"))
+
+
+@issue_group.command("schema")
+@click.option(
+    "--live",
+    is_flag=True,
+    help="Fetch live enum values (trackers, statuses, priorities) from Redmine",
+)
+@click.pass_context
+@handle_errors
+def issue_schema(ctx, live):
+    """Show creation schema for issues.
+
+    Returns required fields, optional fields, read-only fields, and ID fields.
+    Use --live to also fetch trackers, statuses, and priorities from Redmine.
+
+    \b
+    Examples:
+      redmine-cli issue schema
+      redmine-cli -p prod issue schema --live
+    """
+    from ..schema import get_resource_schema, get_live_enums
+
+    schema = get_resource_schema("issue")
+    if live:
+        rm = get_redmine(ctx)
+        schema["enums"] = get_live_enums(rm, "issue")
+    emit(schema)

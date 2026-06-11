@@ -339,3 +339,31 @@ def project_fields(ctx):
     from ..fields import get_resource_fields
 
     emit(get_resource_fields("project"))
+
+
+@project_group.command("schema")
+@click.option(
+    "--live",
+    is_flag=True,
+    help="Fetch live tracker list from Redmine",
+)
+@click.pass_context
+@handle_errors
+def project_schema(ctx, live):
+    """Show creation schema for projects.
+
+    Returns required fields, optional fields, read-only fields, and ID fields.
+    Use --live to also fetch available trackers from Redmine.
+
+    \b
+    Examples:
+      redmine-cli project schema
+      redmine-cli -p prod project schema --live
+    """
+    from ..schema import get_resource_schema, get_live_enums
+
+    schema = get_resource_schema("project")
+    if live:
+        rm = get_redmine(ctx)
+        schema["enums"] = get_live_enums(rm, "project")
+    emit(schema)
