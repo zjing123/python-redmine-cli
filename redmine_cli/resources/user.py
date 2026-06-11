@@ -68,7 +68,7 @@ def user_get(ctx, user_ref, includes, fields):
 )
 @click.option("--name", help="Filter by login, firstname, lastname, or email")
 @click.option("--group-id", type=int, help="Filter by group ID")
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--fields",
@@ -98,7 +98,7 @@ def user_list(ctx, status, name, group_id, limit, offset, fields):
     else:
         rs = rm.user.all()
 
-    if limit:
+    if limit is not None:
         rs = rs[offset : offset + limit] if offset else rs[:limit]
     elif offset:
         rs = rs[offset:]

@@ -53,7 +53,7 @@ def time_entry_get(ctx, entry_ref, fields):
 @click.option("--activity-id", type=int, help="Filter by activity ID")
 @click.option("--from", "from_date", help="Start date (YYYY-MM-DD)")
 @click.option("--to", "to_date", help="End date (YYYY-MM-DD)")
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--fields",
@@ -102,7 +102,7 @@ def time_entry_list(
     else:
         rs = rm.time_entry.all()
 
-    if limit:
+    if limit is not None:
         rs = rs[offset : offset + limit] if offset else rs[:limit]
     elif offset:
         rs = rs[offset:]

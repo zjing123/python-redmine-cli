@@ -52,7 +52,7 @@ def emit(data, total_count=None, limit=None, offset=None, fields=None):
     if total_count is not None:
         result["total_count"] = total_count
         result["limit"] = limit
-        result["offset"] = offset
+        result["offset"] = offset if offset else 0
     if fields:
         data = _filter_fields(data, fields)
     result["data"] = data

@@ -81,7 +81,7 @@ def resource_get(ctx, resource_name, resource_ref, fields):
 
 @generic_group.command("list")
 @click.argument("resource_name")
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--fields",
@@ -102,7 +102,7 @@ def resource_list(ctx, resource_name, limit, offset, fields):
     manager = _get_manager(rm, resource_name)
     rs = manager.all()
 
-    if limit:
+    if limit is not None:
         rs = rs[offset : offset + limit] if offset else rs[:limit]
     elif offset:
         rs = rs[offset:]
@@ -123,7 +123,7 @@ def resource_list(ctx, resource_name, limit, offset, fields):
     "--json", "json_data", help="JSON object with filter fields"
 )
 @click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--fields",
@@ -148,7 +148,7 @@ def resource_filter(ctx, resource_name, json_data, stdin_mode, limit, offset, fi
     filters = resolve_json_data(json_data, stdin_mode, required=True)
     rs = manager.filter(**filters)
 
-    if limit:
+    if limit is not None:
         rs = rs[offset : offset + limit] if offset else rs[:limit]
     elif offset:
         rs = rs[offset:]

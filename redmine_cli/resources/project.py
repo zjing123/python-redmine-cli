@@ -50,7 +50,7 @@ def project_get(ctx, project_ref, fields):
 
 
 @project_group.command("list")
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--include",
@@ -83,7 +83,7 @@ def project_list(ctx, limit, offset, includes, fields):
 
     rs = rm.project.all(**kwargs)
 
-    if limit:
+    if limit is not None:
         rs = rs[offset : offset + limit] if offset else rs[:limit]
     elif offset:
         rs = rs[offset:]

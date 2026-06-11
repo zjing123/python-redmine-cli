@@ -85,7 +85,7 @@ def issue_get(ctx, issue_ref, includes, fields):
 @click.option("--parent-id", type=int, help="Filter by parent issue ID")
 @click.option("--query-id", type=int, help="Use a saved Redmine query by ID")
 @click.option("--sort", help="Sort expression, e.g. updated_on:desc or priority:asc")
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--include",
@@ -171,7 +171,7 @@ def issue_list(
     else:
         rs = rm.issue.all()
 
-    if limit:
+    if limit is not None:
         rs = rs[offset : offset + limit] if offset else rs[:limit]
     elif offset:
         rs = rs[offset:]

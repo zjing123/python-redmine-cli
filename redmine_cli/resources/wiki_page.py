@@ -38,7 +38,7 @@ def wiki_page_get(ctx, title, project_id, fields):
 
 @wiki_page_group.command("list")
 @click.option("--project-id", required=True, type=int, help="Project ID (required)")
-@click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
+@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--fields",
@@ -51,7 +51,7 @@ def wiki_page_list(ctx, project_id, limit, offset, fields):
     rm = get_redmine(ctx)
     rs = rm.wiki_page.filter(project_id=project_id)
 
-    if limit:
+    if limit is not None:
         rs = rs[offset : offset + limit] if offset else rs[:limit]
     elif offset:
         rs = rs[offset:]
