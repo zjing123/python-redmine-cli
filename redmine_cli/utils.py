@@ -31,9 +31,17 @@ def resourceset_to_list(resourceset):
     return [r.raw() for r in resourceset]
 
 
-def parse_json_input(json_str):
-    """Parse a JSON string, useful for --json CLI arguments."""
-    return json.loads(json_str)
+def parse_json_input(json_str, param_name="--json"):
+    """Parse a JSON string, useful for --json CLI arguments.
+
+    Args:
+        json_str: The JSON string to parse.
+        param_name: Parameter name used in error messages for context.
+    """
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        raise click.UsageError(f"Invalid JSON in {param_name}: {e}") from e
 
 
 def resolve_json_data(json_data, stdin_mode, required=False):
@@ -48,9 +56,15 @@ def resolve_json_data(json_data, stdin_mode, required=False):
         raw = sys.stdin.read().strip()
         if not raw:
             raise click.UsageError("No data received on stdin.")
-        return json.loads(raw)
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise click.UsageError(f"Invalid JSON from --stdin: {e}") from e
     if json_data:
-        return json.loads(json_data)
+        try:
+            return json.loads(json_data)
+        except json.JSONDecodeError as e:
+            raise click.UsageError(f"Invalid JSON in --json: {e}") from e
     if required:
         raise click.UsageError("Either --json or --stdin is required.")
     return None
