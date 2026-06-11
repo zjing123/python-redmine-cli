@@ -315,7 +315,6 @@ def resource_schema(ctx, resource_name, live):
 
     if live:
         rm = get_redmine(ctx)
-        from ..schema import get_live_enums as _get_enums
-        schema["enums"] = _get_enums(rm, resource_name)
+        schema["enums"] = get_live_enums(rm, resource_name)
 
     emit(schema)

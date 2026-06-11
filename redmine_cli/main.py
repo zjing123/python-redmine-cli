@@ -110,6 +110,7 @@ def config_profiles():
 
 @config_group.command("show")
 @click.pass_context
+@handle_errors
 def config_show(ctx):
     """Show the active connection URL (no secrets exposed).
 

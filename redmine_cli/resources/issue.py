@@ -210,6 +210,10 @@ def _issue_list_all_profiles(
                 rs = rm.issue.filter(**local_kwargs)
             else:
                 rs = rm.issue.all()
+            if limit is not None:
+                rs = rs[offset : offset + limit] if offset else rs[:limit]
+            elif offset:
+                rs = rs[offset:]
             issues = resourceset_to_list(rs)
             for issue in issues:
                 issue["_profile"] = profile_name
@@ -494,7 +498,7 @@ def issue_copy(ctx, issue_ref, project_id, link_original, includes):
             copy_fields["project_id"] = project_id
         if link_original:
             copy_fields["link_copy"] = True
-        for i in inc or ("subtasks", "attachments"):
+        for i in inc:
             copy_fields[f"copy_{i}"] = True
         emit_dry_run("copy", "issue", DRY_RUN_METHODS["copy"], url, payload=copy_fields)
         return
