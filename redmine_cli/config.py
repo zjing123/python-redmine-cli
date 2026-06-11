@@ -10,6 +10,21 @@ from urllib.parse import urlparse
 
 import yaml
 from redminelib import Redmine
+from redminelib.engines import SyncEngine
+
+DEFAULT_TIMEOUT = 30
+
+
+class TimeoutEngine(SyncEngine):
+    """SyncEngine with a default request timeout."""
+
+    timeout = DEFAULT_TIMEOUT
+
+    def request(self, method, url, headers=None, params=None, data=None):
+        kwargs = self.construct_request_kwargs(method, headers, params, data)
+        return self.process_response(
+            self.session.request(method, url, timeout=self.timeout, **kwargs)
+        )
 
 DEFAULT_CONFIG_DIR = Path.home() / ".config" / "redmine-cli"
 DEFAULT_CONFIG_PATH = DEFAULT_CONFIG_DIR / "config.yaml"
@@ -146,4 +161,5 @@ def create_redmine(profile=None, **overrides):
     if config.get("version"):
         kwargs["version"] = config["version"]
 
+    kwargs["engine"] = TimeoutEngine
     return Redmine(**kwargs)
