@@ -3,7 +3,7 @@
 import click
 
 from ..output import emit, handle_errors, emit_dry_run
-from ..utils import parse_json_input, resourceset_to_list, build_fields
+from ..utils import parse_json_input, resourceset_to_list, build_fields, resolve_json_data
 from ..context import get_redmine, build_dry_run_url, DRY_RUN_METHODS
 
 
@@ -70,20 +70,23 @@ def wiki_page_list(ctx, project_id, limit, offset, fields):
 @click.argument("title")
 @click.option("--project-id", required=True, type=int, help="Project ID (required)")
 @click.option("--json", "json_data", help="JSON string with all fields")
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.option(
     "--text", help="Page content (textile or markdown, depending on Redmine config)"
 )
 @click.option("--comments", help="Edit comment")
 @click.pass_context
 @handle_errors
-def wiki_page_create(ctx, title, project_id, json_data, text, comments):
+def wiki_page_create(ctx, title, project_id, json_data, stdin_mode, text, comments):
     """Create a new wiki page with the given title.
 
     --project-id is required. Provide --text for the page content.
+    Use --json or --stdin to pass all fields at once.
     """
     rm = get_redmine(ctx)
-    if json_data:
-        fields = parse_json_input(json_data)
+    json_fields = resolve_json_data(json_data, stdin_mode)
+    if json_fields is not None:
+        fields = json_fields
     else:
         fields = build_fields(text=text, comments=comments)
 
@@ -100,15 +103,20 @@ def wiki_page_create(ctx, title, project_id, json_data, text, comments):
 @click.argument("title")
 @click.option("--project-id", required=True, type=int, help="Project ID (required)")
 @click.option("--json", "json_data", help="JSON string with fields to update")
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.option("--text", help="New page content")
 @click.option("--comments", help="Edit comment for this update")
 @click.pass_context
 @handle_errors
-def wiki_page_update(ctx, title, project_id, json_data, text, comments):
-    """Update an existing wiki page's content."""
+def wiki_page_update(ctx, title, project_id, json_data, stdin_mode, text, comments):
+    """Update an existing wiki page's content.
+
+    Use --json or --stdin to pass all fields at once.
+    """
     rm = get_redmine(ctx)
-    if json_data:
-        fields = parse_json_input(json_data)
+    json_fields = resolve_json_data(json_data, stdin_mode)
+    if json_fields is not None:
+        fields = json_fields
     else:
         fields = build_fields(text=text, comments=comments)
 

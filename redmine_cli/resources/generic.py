@@ -7,7 +7,7 @@ Provides a uniform interface for agents that don't need resource-specific comman
 import click
 
 from ..output import emit, handle_errors, emit_dry_run
-from ..utils import parse_json_input, resourceset_to_list
+from ..utils import parse_json_input, resourceset_to_list, resolve_json_data
 from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
 from redminelib.resources import registry as resource_registry
 
@@ -120,8 +120,9 @@ def resource_list(ctx, resource_name, limit, offset, fields):
 @generic_group.command("filter")
 @click.argument("resource_name")
 @click.option(
-    "--json", "json_data", required=True, help="JSON object with filter fields"
+    "--json", "json_data", help="JSON object with filter fields"
 )
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.option("--limit", "-l", type=int, default=0, help="Max results (0=no limit)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
@@ -130,17 +131,21 @@ def resource_list(ctx, resource_name, limit, offset, fields):
 )
 @click.pass_context
 @handle_errors
-def resource_filter(ctx, resource_name, json_data, limit, offset, fields):
+def resource_filter(ctx, resource_name, json_data, stdin_mode, limit, offset, fields):
     """Filter resources by fields.
+
+    \b
+    Either --json or --stdin is required.
 
     \b
     Examples:
       redmine-cli -p redminex resource filter issue --json '{"project_id": 1}'
       redmine-cli -p redminex resource filter user --json '{"status": 1}'
+      echo '{"project_id": 1}' | redmine-cli -p redminex resource filter issue --stdin
     """
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
-    filters = parse_json_input(json_data)
+    filters = resolve_json_data(json_data, stdin_mode, required=True)
     rs = manager.filter(**filters)
 
     if limit:
@@ -161,21 +166,26 @@ def resource_filter(ctx, resource_name, json_data, limit, offset, fields):
 @generic_group.command("create")
 @click.argument("resource_name")
 @click.option(
-    "--json", "json_data", required=True, help="JSON object with creation fields"
+    "--json", "json_data", help="JSON object with creation fields"
 )
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.pass_context
 @handle_errors
-def resource_create(ctx, resource_name, json_data):
+def resource_create(ctx, resource_name, json_data, stdin_mode):
     """Create a new resource.
+
+    \b
+    Either --json or --stdin is required.
 
     \b
     Examples:
       redmine-cli -p redminex resource create issue --json '{"project_id": 1, "subject": "Bug report"}'
       redmine-cli -p redminex resource create project --json '{"name": "Test", "identifier": "test"}'
+      echo '{"project_id":1,"subject":"Bug report"}' | redmine-cli -p redminex resource create issue --stdin
     """
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
-    fields = parse_json_input(json_data)
+    fields = resolve_json_data(json_data, stdin_mode, required=True)
     if ctx.obj.get("_dry_run"):
         url = build_dry_run_url(rm.url, resource_name, "create")
         emit_dry_run("create", resource_name, DRY_RUN_METHODS["create"], url, payload=fields)
@@ -188,26 +198,29 @@ def resource_create(ctx, resource_name, json_data):
 @click.argument("resource_name")
 @click.argument("resource_ref")
 @click.option(
-    "--json", "json_data", required=True, help="JSON object with update fields"
+    "--json", "json_data", help="JSON object with update fields"
 )
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.pass_context
 @handle_errors
-def resource_update(ctx, resource_name, resource_ref, json_data):
+def resource_update(ctx, resource_name, resource_ref, json_data, stdin_mode):
     """Update an existing resource.
 
     \b
     RESOURCE_REF accepts an integer ID (requires -p) or a full Redmine URL.
+    Either --json or --stdin is required.
 
     \b
     Examples:
       redmine-cli -p redminex resource update issue 123 --json '{"status_id": 3}'
       redmine-cli resource update issue https://redminex.silksoftware.com/issues/123 --json '{"status_id": 3}'
       redmine-cli -p redminex resource update project test --json '{"name": "New Name"}'
+      echo '{"status_id": 3}' | redmine-cli -p redminex resource update issue 123 --stdin
     """
     resource_id = resolve_ref(ctx, resource_ref)
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
-    fields = parse_json_input(json_data)
+    fields = resolve_json_data(json_data, stdin_mode, required=True)
     if ctx.obj.get("_dry_run"):
         url = build_dry_run_url(rm.url, resource_name, "update", id=resource_id)
         emit_dry_run("update", resource_name, DRY_RUN_METHODS["update"], url, payload=fields)

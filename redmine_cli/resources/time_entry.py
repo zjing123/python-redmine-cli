@@ -3,7 +3,7 @@
 import click
 
 from ..output import emit, handle_errors, emit_dry_run
-from ..utils import parse_json_input, resourceset_to_list, build_fields
+from ..utils import parse_json_input, resourceset_to_list, build_fields, resolve_json_data
 from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
 
 
@@ -119,6 +119,7 @@ def time_entry_list(
 
 @time_entry_group.command("create")
 @click.option("--json", "json_data", help="JSON string with all fields")
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.option("--issue-id", type=int, help="Issue ID")
 @click.option("--project-id", type=int, help="Project ID (alternative to issue-id)")
 @click.option("--spent-on", help="Date (YYYY-MM-DD), defaults to today")
@@ -128,21 +129,23 @@ def time_entry_list(
 @click.pass_context
 @handle_errors
 def time_entry_create(
-    ctx, json_data, issue_id, project_id, spent_on, hours, activity_id, comments
+    ctx, json_data, stdin_mode, issue_id, project_id, spent_on, hours, activity_id, comments
 ):
     """Create a new time entry.
 
     \b
     Provide either --issue-id or --project-id, along with --hours.
-    Use --json to pass all fields at once.
+    Use --json or --stdin to pass all fields at once.
 
     \b
     Examples:
       redmine-cli -p redminex time-entry create --issue-id 123 --hours 2.5 --activity-id 1
+      echo '{"issue_id":123,"hours":2.5}' | redmine-cli -p redminex time-entry create --stdin
     """
     rm = get_redmine(ctx)
-    if json_data:
-        fields = parse_json_input(json_data)
+    json_fields = resolve_json_data(json_data, stdin_mode)
+    if json_fields is not None:
+        fields = json_fields
     else:
         fields = build_fields(
             issue_id=issue_id,
@@ -165,13 +168,14 @@ def time_entry_create(
 @time_entry_group.command("update")
 @click.argument("entry_ref")
 @click.option("--json", "json_data", help="JSON string with fields to update")
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.option("--hours", type=float, help="New hours")
 @click.option("--activity-id", type=int, help="New activity ID")
 @click.option("--comments", help="New comments")
 @click.option("--spent-on", help="New date (YYYY-MM-DD)")
 @click.pass_context
 @handle_errors
-def time_entry_update(ctx, entry_ref, json_data, hours, activity_id, comments, spent_on):
+def time_entry_update(ctx, entry_ref, json_data, stdin_mode, hours, activity_id, comments, spent_on):
     """Update an existing time entry's fields.
 
     \b
@@ -181,11 +185,13 @@ def time_entry_update(ctx, entry_ref, json_data, hours, activity_id, comments, s
     Examples:
       redmine-cli -p redminex time-entry update 123 --hours 3.0
       redmine-cli time-entry update https://redminex.silksoftware.com/time_entries/123 --hours 3.0
+      echo '{"hours":3.0}' | redmine-cli -p redminex time-entry update 123 --stdin
     """
     entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
-    if json_data:
-        fields = parse_json_input(json_data)
+    json_fields = resolve_json_data(json_data, stdin_mode)
+    if json_fields is not None:
+        fields = json_fields
     else:
         fields = build_fields(
             hours=hours,

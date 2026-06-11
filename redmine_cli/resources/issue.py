@@ -3,7 +3,7 @@
 import click
 
 from ..output import emit, handle_errors, emit_dry_run
-from ..utils import parse_json_input, resourceset_to_list, build_fields
+from ..utils import parse_json_input, resourceset_to_list, build_fields, resolve_json_data
 from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
 from ..config import create_redmine, list_profiles, load_config_file
 
@@ -233,6 +233,7 @@ def _issue_list_all_profiles(
 
 @issue_group.command("create")
 @click.option("--json", "json_data", help="JSON string with all fields")
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.option("--project-id", type=int, help="Project ID (required)")
 @click.option("--subject", help="Issue subject")
 @click.option("--description", help="Issue description")
@@ -249,6 +250,7 @@ def _issue_list_all_profiles(
 def issue_create(
     ctx,
     json_data,
+    stdin_mode,
     project_id,
     subject,
     description,
@@ -264,19 +266,22 @@ def issue_create(
     """Create a new issue.
 
     \b
-    Either use individual flags (--project-id, --subject, etc.) or --json
-    to pass all fields at once. --project-id and --subject are the minimum
-    required fields. Custom fields can be passed via --custom-fields as JSON.
+    Either use individual flags (--project-id, --subject, etc.), --json,
+    or --stdin to pass all fields at once. --project-id and --subject are
+    the minimum required fields. Custom fields can be passed via
+    --custom-fields as JSON.
 
     \b
     Examples:
       redmine-cli -p redminex issue create --project-id 1 --subject "Bug report"
       redmine-cli -p redminex issue create --project-id 1 --subject "Feature" --tracker-id 2
       redmine-cli -p redminex issue create --json '{"project_id":1,"subject":"Title"}'
+      echo '{"project_id":1,"subject":"Title"}' | redmine-cli -p redminex issue create --stdin
     """
     rm = get_redmine(ctx)
-    if json_data:
-        fields = parse_json_input(json_data)
+    json_fields = resolve_json_data(json_data, stdin_mode)
+    if json_fields is not None:
+        fields = json_fields
     else:
         fields = build_fields(
             project_id=project_id,
@@ -306,6 +311,7 @@ def issue_create(
 @issue_group.command("update")
 @click.argument("issue_ref")
 @click.option("--json", "json_data", help="JSON string with fields to update")
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.option("--subject", help="New subject")
 @click.option("--description", help="New description")
 @click.option("--status-id", type=int, help="New status ID")
@@ -321,6 +327,7 @@ def issue_update(
     ctx,
     issue_ref,
     json_data,
+    stdin_mode,
     subject,
     description,
     status_id,
@@ -342,11 +349,13 @@ def issue_update(
       redmine-cli -p redminex issue update 123 --status-id 3 --notes "Fixed"
       redmine-cli issue update https://redminex.silksoftware.com/issues/123 --status-id 3
       redmine-cli -p redminex issue update 123 --json '{"status_id":3,"notes":"Bulk update"}'
+      echo '{"status_id":3}' | redmine-cli -p redminex issue update 123 --stdin
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
-    if json_data:
-        fields = parse_json_input(json_data)
+    json_fields = resolve_json_data(json_data, stdin_mode)
+    if json_fields is not None:
+        fields = json_fields
     else:
         fields = build_fields(
             subject=subject,

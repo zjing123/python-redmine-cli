@@ -3,7 +3,7 @@
 import click
 
 from ..output import emit, handle_errors, emit_dry_run
-from ..utils import parse_json_input, resourceset_to_list, build_fields
+from ..utils import parse_json_input, resourceset_to_list, build_fields, resolve_json_data
 from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
 
 
@@ -115,6 +115,7 @@ def user_list(ctx, status, name, group_id, limit, offset, fields):
 
 @user_group.command("create")
 @click.option("--json", "json_data", help="JSON string with all fields")
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.option("--login", help="Username")
 @click.option("--firstname", help="First name")
 @click.option("--lastname", help="Last name")
@@ -129,6 +130,7 @@ def user_list(ctx, status, name, group_id, limit, offset, fields):
 def user_create(
     ctx,
     json_data,
+    stdin_mode,
     login,
     firstname,
     lastname,
@@ -144,10 +146,12 @@ def user_create(
     \b
     Examples:
       redmine-cli -p redminex user create --login admin --firstname Admin --lastname User --mail admin@test.com
+      echo '{"login":"admin","firstname":"Admin","lastname":"User","mail":"admin@test.com"}' | redmine-cli -p redminex user create --stdin
     """
     rm = get_redmine(ctx)
-    if json_data:
-        fields = parse_json_input(json_data)
+    json_fields = resolve_json_data(json_data, stdin_mode)
+    if json_fields is not None:
+        fields = json_fields
     else:
         fields = build_fields(
             login=login,
@@ -176,6 +180,7 @@ def user_create(
 @user_group.command("update")
 @click.argument("user_ref")
 @click.option("--json", "json_data", help="JSON string with fields to update")
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.option("--firstname", help="New first name")
 @click.option("--lastname", help="New last name")
 @click.option("--mail", help="New email")
@@ -184,7 +189,7 @@ def user_create(
 @click.pass_context
 @handle_errors
 def user_update(
-    ctx, user_ref, json_data, firstname, lastname, mail, password, must_change_password
+    ctx, user_ref, json_data, stdin_mode, firstname, lastname, mail, password, must_change_password
 ):
     """Update an existing user's fields.
 
@@ -195,11 +200,13 @@ def user_update(
     Examples:
       redmine-cli -p redminex user update 5 --firstname "New Name"
       redmine-cli user update https://redminex.silksoftware.com/users/5 --firstname "New Name"
+      echo '{"firstname":"New Name"}' | redmine-cli -p redminex user update 5 --stdin
     """
     uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)
-    if json_data:
-        fields = parse_json_input(json_data)
+    json_fields = resolve_json_data(json_data, stdin_mode)
+    if json_fields is not None:
+        fields = json_fields
     else:
         fields = build_fields(
             firstname=firstname,

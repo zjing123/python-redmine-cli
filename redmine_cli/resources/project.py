@@ -3,7 +3,7 @@
 import click
 
 from ..output import emit, handle_errors, emit_dry_run
-from ..utils import parse_json_input, resourceset_to_list, build_fields
+from ..utils import parse_json_input, resourceset_to_list, build_fields, resolve_json_data
 from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
 
 
@@ -100,6 +100,7 @@ def project_list(ctx, limit, offset, includes, fields):
 
 @project_group.command("create")
 @click.option("--json", "json_data", help="JSON string with all fields")
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.option("--name", help="Project name")
 @click.option("--identifier", help="Project identifier")
 @click.option("--description", help="Project description")
@@ -112,6 +113,7 @@ def project_list(ctx, limit, offset, includes, fields):
 def project_create(
     ctx,
     json_data,
+    stdin_mode,
     name,
     identifier,
     description,
@@ -123,16 +125,19 @@ def project_create(
     """Create a new project.
 
     \b
-    Name and identifier are required. Use --json to pass all fields at once.
+    Name and identifier are required. Use --json or --stdin to pass all
+    fields at once.
 
     \b
     Examples:
       redmine-cli -p redminex project create --name "Test" --identifier test
       redmine-cli -p redminex project create --json '{"name":"Test","identifier":"test"}'
+      echo '{"name":"Test","identifier":"test"}' | redmine-cli -p redminex project create --stdin
     """
     rm = get_redmine(ctx)
-    if json_data:
-        fields = parse_json_input(json_data)
+    json_fields = resolve_json_data(json_data, stdin_mode)
+    if json_fields is not None:
+        fields = json_fields
     else:
         fields = build_fields(
             name=name,
@@ -157,13 +162,14 @@ def project_create(
 @project_group.command("update")
 @click.argument("project_ref")
 @click.option("--json", "json_data", help="JSON string with fields to update")
+@click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
 @click.option("--name", help="New name")
 @click.option("--description", help="New description")
 @click.option("--is-public", type=bool, help="Public project")
 @click.option("--parent-id", type=int, help="New parent project ID")
 @click.pass_context
 @handle_errors
-def project_update(ctx, project_ref, json_data, name, description, is_public, parent_id):
+def project_update(ctx, project_ref, json_data, stdin_mode, name, description, is_public, parent_id):
     """Update an existing project's fields.
 
     \b
@@ -174,11 +180,13 @@ def project_update(ctx, project_ref, json_data, name, description, is_public, pa
     Examples:
       redmine-cli -p redminex project update my-project --name "New Name"
       redmine-cli project update https://redminex.silksoftware.com/projects/my-project --name "New Name"
+      echo '{"name":"New Name"}' | redmine-cli -p redminex project update my-project --stdin
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    if json_data:
-        fields = parse_json_input(json_data)
+    json_fields = resolve_json_data(json_data, stdin_mode)
+    if json_fields is not None:
+        fields = json_fields
     else:
         fields = build_fields(
             name=name,

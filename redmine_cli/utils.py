@@ -1,7 +1,10 @@
 """Serialization and data conversion utilities for redmine-cli."""
 
 import json
+import sys
 from datetime import date, datetime
+
+import click
 
 
 def serialize(obj):
@@ -31,6 +34,26 @@ def resourceset_to_list(resourceset):
 def parse_json_input(json_str):
     """Parse a JSON string, useful for --json CLI arguments."""
     return json.loads(json_str)
+
+
+def resolve_json_data(json_data, stdin_mode, required=False):
+    """Resolve JSON input from --json string or --stdin pipe.
+
+    Returns parsed dict, or None if neither source was provided.
+    Raises click.UsageError on mutual exclusion, empty stdin, or missing input.
+    """
+    if json_data and stdin_mode:
+        raise click.UsageError("--json and --stdin are mutually exclusive.")
+    if stdin_mode:
+        raw = sys.stdin.read().strip()
+        if not raw:
+            raise click.UsageError("No data received on stdin.")
+        return json.loads(raw)
+    if json_data:
+        return json.loads(json_data)
+    if required:
+        raise click.UsageError("Either --json or --stdin is required.")
+    return None
 
 
 def build_fields(json_data=None, **cli_kwargs):
