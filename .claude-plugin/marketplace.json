@@ -1,0 +1,13 @@
+{
+  "name": "redmine-cli",
+  "plugins": [
+    {
+      "name": "redmine-reader",
+      "description": "Read-only Redmine issue query skill, powered by redmine-cli",
+      "source": "./",
+      "skills": [
+        "./skills/redmine-reader"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "name": "redmine-cli",
+  "interface": {
+    "displayName": "Redmine CLI"
+  },
+  "plugins": [
+    {
+      "name": "redmine-reader",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}
