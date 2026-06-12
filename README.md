@@ -13,7 +13,25 @@
 
 ## 安装
 
-### uv tool 安装（推荐）
+### 一键安装（推荐）
+
+```bash
+# 从 GitHub 远程安装（自动安装 uv + redmine-cli）
+curl -LsSf https://raw.githubusercontent.com/zjing123/python-redmine-cli/main/install.sh | sh
+
+# 私有仓库用 SSH 协议
+GIT_PROTO=ssh curl -LsSf https://raw.githubusercontent.com/zjing123/python-redmine-cli/main/install.sh | sh
+```
+
+已安装时重复运行会自动升级。
+
+### 从 GitHub 直接安装
+
+```bash
+uv tool install git+https://github.com/zjing123/python-redmine-cli.git
+```
+
+### 本地安装
 
 ```bash
 uv tool install /path/to/redmine-cli
@@ -25,12 +43,6 @@ uv tool install /path/to/redmine-cli
 pipx install /path/to/redmine-cli
 ```
 
-### 从 GitHub 安装
-
-```bash
-uv tool install git+https://github.com/zjing123/python-redmine-cli.git
-```
-
 ### 开发模式
 
 ```bash
@@ -38,12 +50,6 @@ git clone https://github.com/zjing123/python-redmine-cli.git
 cd python-redmine-cli
 uv venv && source .venv/bin/activate
 uv pip install -e ".[dev]"
-```
-
-### 更新
-
-```bash
-uv tool install --force /path/to/redmine-cli
 ```
 
 ## 快速开始
