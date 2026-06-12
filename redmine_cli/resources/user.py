@@ -2,9 +2,9 @@
 
 import click
 
-from ..context import DRY_RUN_METHODS, build_dry_run_url, get_redmine, resolve_ref
-from ..output import emit, emit_dry_run, handle_errors
-from ..utils import build_fields, resolve_json_data, resourceset_to_list
+from ..context import get_redmine, resolve_ref
+from ..output import emit, handle_errors
+from ._shared import emit_dry_run_mutation, emit_resourceset, parse_fields, resolve_fields
 
 
 @click.group("user")
@@ -60,7 +60,7 @@ def user_get(ctx, user_ref, includes, fields):
         result = rm.user.get("current", **kwargs)
     else:
         result = rm.user.get(int(uid), **kwargs)
-    emit(result.raw(), fields=fields.split(",") if fields else None)
+    emit(result.raw(), fields=parse_fields(fields))
 
 
 @user_group.command("list")
@@ -100,20 +100,8 @@ def user_list(ctx, status, name, group_id, limit, fetch_all, offset, fields):
     else:
         rs = rm.user.all()
 
-    effective_limit = None if fetch_all else limit
-    total_count = rs.total_count
-    if effective_limit is not None:
-        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
-    elif offset:
-        rs = rs[offset:]
-
-    data = resourceset_to_list(rs)
-    emit(
-        data,
-        total_count=total_count,
-        limit=effective_limit,
-        offset=offset,
-        fields=fields.split(",") if fields else None,
+    emit_resourceset(
+        rs, limit=limit, fetch_all=fetch_all, offset=offset, fields=parse_fields(fields)
     )
 
 
@@ -154,18 +142,17 @@ def user_create(
         | redmine-cli -p redminex user create --stdin
     """
     rm = get_redmine(ctx)
-    json_fields = resolve_json_data(json_data, stdin_mode)
-    if json_fields is not None:
-        fields = json_fields
-    else:
-        fields = build_fields(
-            login=login,
-            firstname=firstname,
-            lastname=lastname,
-            mail=mail,
-            password=password,
-            auth_source_id=auth_source_id,
-        )
+    fields = resolve_fields(
+        json_data,
+        stdin_mode,
+        login=login,
+        firstname=firstname,
+        lastname=lastname,
+        mail=mail,
+        password=password,
+        auth_source_id=auth_source_id,
+    )
+    if not (json_data or stdin_mode):
         if must_change_password:
             fields["must_change_passwd"] = True
         if generate_password:
@@ -173,9 +160,7 @@ def user_create(
         if send_information:
             fields["send_information"] = True
 
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "user", "create")
-        emit_dry_run("create", "user", DRY_RUN_METHODS["create"], url, payload=fields)
+    if emit_dry_run_mutation(ctx, rm.url, "user", "create", payload=fields):
         return
 
     result = rm.user.create(**fields)
@@ -209,22 +194,19 @@ def user_update(
     """
     uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)
-    json_fields = resolve_json_data(json_data, stdin_mode)
-    if json_fields is not None:
-        fields = json_fields
-    else:
-        fields = build_fields(
-            firstname=firstname,
-            lastname=lastname,
-            mail=mail,
-            password=password,
-        )
+    fields = resolve_fields(
+        json_data,
+        stdin_mode,
+        firstname=firstname,
+        lastname=lastname,
+        mail=mail,
+        password=password,
+    )
+    if not (json_data or stdin_mode):
         if must_change_password:
             fields["must_change_passwd"] = True
 
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "user", "update", id=uid)
-        emit_dry_run("update", "user", DRY_RUN_METHODS["update"], url, payload=fields)
+    if emit_dry_run_mutation(ctx, rm.url, "user", "update", payload=fields, id=uid):
         return
 
     rm.user.update(int(uid), **fields)
@@ -248,9 +230,7 @@ def user_delete(ctx, user_ref):
     """
     uid = resolve_ref(ctx, user_ref)
     rm = get_redmine(ctx)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "user", "delete", id=uid)
-        emit_dry_run("delete", "user", DRY_RUN_METHODS["delete"], url)
+    if emit_dry_run_mutation(ctx, rm.url, "user", "delete", id=uid):
         return
     rm.user.delete(int(uid))
     emit({"deleted": True, "resource": "user", "id": uid})

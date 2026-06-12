@@ -7,9 +7,10 @@ Provides a uniform interface for agents that don't need resource-specific comman
 import click
 from redminelib.resources import registry as resource_registry
 
-from ..context import DRY_RUN_METHODS, build_dry_run_url, get_redmine, resolve_ref
-from ..output import emit, emit_dry_run, handle_errors
-from ..utils import resolve_json_data, resourceset_to_list
+from ..context import get_redmine, resolve_ref
+from ..output import emit, handle_errors
+from ..utils import resolve_json_data
+from ._shared import emit_dry_run_mutation, emit_resourceset, parse_fields
 
 
 def _get_manager(rm, resource_name):
@@ -95,7 +96,7 @@ def resource_get(ctx, resource_name, resource_ref, fields):
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
     result = manager.get(resource_id)
-    emit(result.raw(), fields=fields.split(",") if fields else None)
+    emit(result.raw(), fields=parse_fields(fields))
 
 
 @generic_group.command("list")
@@ -122,20 +123,8 @@ def resource_list(ctx, resource_name, limit, fetch_all, offset, fields):
     manager = _get_manager(rm, resource_name)
     rs = manager.all()
 
-    effective_limit = None if fetch_all else limit
-    total_count = rs.total_count
-    if effective_limit is not None:
-        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
-    elif offset:
-        rs = rs[offset:]
-
-    data = resourceset_to_list(rs)
-    emit(
-        data,
-        total_count=total_count,
-        limit=effective_limit,
-        offset=offset,
-        fields=fields.split(",") if fields else None,
+    emit_resourceset(
+        rs, limit=limit, fetch_all=fetch_all, offset=offset, fields=parse_fields(fields)
     )
 
 
@@ -171,20 +160,8 @@ def resource_filter(ctx, resource_name, json_data, stdin_mode, limit, fetch_all,
     filters = resolve_json_data(json_data, stdin_mode, required=True)
     rs = manager.filter(**filters)
 
-    effective_limit = None if fetch_all else limit
-    total_count = rs.total_count
-    if effective_limit is not None:
-        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
-    elif offset:
-        rs = rs[offset:]
-
-    data = resourceset_to_list(rs)
-    emit(
-        data,
-        total_count=total_count,
-        limit=effective_limit,
-        offset=offset,
-        fields=fields.split(",") if fields else None,
+    emit_resourceset(
+        rs, limit=limit, fetch_all=fetch_all, offset=offset, fields=parse_fields(fields)
     )
 
 
@@ -211,9 +188,7 @@ def resource_create(ctx, resource_name, json_data, stdin_mode):
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
     fields = resolve_json_data(json_data, stdin_mode, required=True)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, resource_name, "create")
-        emit_dry_run("create", resource_name, DRY_RUN_METHODS["create"], url, payload=fields)
+    if emit_dry_run_mutation(ctx, rm.url, resource_name, "create", payload=fields):
         return
     result = manager.create(**fields)
     emit(result.raw())
@@ -246,9 +221,7 @@ def resource_update(ctx, resource_name, resource_ref, json_data, stdin_mode):
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
     fields = resolve_json_data(json_data, stdin_mode, required=True)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, resource_name, "update", id=resource_id)
-        emit_dry_run("update", resource_name, DRY_RUN_METHODS["update"], url, payload=fields)
+    if emit_dry_run_mutation(ctx, rm.url, resource_name, "update", payload=fields, id=resource_id):
         return
     manager.update(resource_id, **fields)
     emit({"updated": True, "resource": resource_name, "id": resource_id})
@@ -274,9 +247,7 @@ def resource_delete(ctx, resource_name, resource_ref):
     resource_id = resolve_ref(ctx, resource_ref)
     rm = get_redmine(ctx)
     manager = _get_manager(rm, resource_name)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, resource_name, "delete", id=resource_id)
-        emit_dry_run("delete", resource_name, DRY_RUN_METHODS["delete"], url)
+    if emit_dry_run_mutation(ctx, rm.url, resource_name, "delete", id=resource_id):
         return
     manager.delete(resource_id)
     emit({"deleted": True, "resource": resource_name, "id": resource_id})

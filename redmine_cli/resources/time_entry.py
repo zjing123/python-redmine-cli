@@ -2,9 +2,9 @@
 
 import click
 
-from ..context import DRY_RUN_METHODS, build_dry_run_url, get_redmine, resolve_ref
-from ..output import emit, emit_dry_run, handle_errors
-from ..utils import build_fields, resolve_json_data, resourceset_to_list
+from ..context import get_redmine, resolve_ref
+from ..output import emit, handle_errors
+from ._shared import emit_dry_run_mutation, emit_resourceset, parse_fields, resolve_fields
 
 
 @click.group("time-entry")
@@ -44,7 +44,7 @@ def time_entry_get(ctx, entry_ref, fields):
     entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
     result = rm.time_entry.get(int(entry_id))
-    emit(result.raw(), fields=fields.split(",") if fields else None)
+    emit(result.raw(), fields=parse_fields(fields))
 
 
 @time_entry_group.command("list")
@@ -105,20 +105,8 @@ def time_entry_list(
     else:
         rs = rm.time_entry.all()
 
-    effective_limit = None if fetch_all else limit
-    total_count = rs.total_count
-    if effective_limit is not None:
-        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
-    elif offset:
-        rs = rs[offset:]
-
-    data = resourceset_to_list(rs)
-    emit(
-        data,
-        total_count=total_count,
-        limit=effective_limit,
-        offset=offset,
-        fields=fields.split(",") if fields else None,
+    emit_resourceset(
+        rs, limit=limit, fetch_all=fetch_all, offset=offset, fields=parse_fields(fields)
     )
 
 
@@ -148,22 +136,18 @@ def time_entry_create(
       echo '{"issue_id":123,"hours":2.5}' | redmine-cli -p redminex time-entry create --stdin
     """
     rm = get_redmine(ctx)
-    json_fields = resolve_json_data(json_data, stdin_mode)
-    if json_fields is not None:
-        fields = json_fields
-    else:
-        fields = build_fields(
-            issue_id=issue_id,
-            project_id=project_id,
-            spent_on=spent_on,
-            hours=hours,
-            activity_id=activity_id,
-            comments=comments,
-        )
+    fields = resolve_fields(
+        json_data,
+        stdin_mode,
+        issue_id=issue_id,
+        project_id=project_id,
+        spent_on=spent_on,
+        hours=hours,
+        activity_id=activity_id,
+        comments=comments,
+    )
 
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "time_entry", "create")
-        emit_dry_run("create", "time_entry", DRY_RUN_METHODS["create"], url, payload=fields)
+    if emit_dry_run_mutation(ctx, rm.url, "time_entry", "create", payload=fields):
         return
 
     result = rm.time_entry.create(**fields)
@@ -194,20 +178,16 @@ def time_entry_update(ctx, entry_ref, json_data, stdin_mode, hours, activity_id,
     """
     entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
-    json_fields = resolve_json_data(json_data, stdin_mode)
-    if json_fields is not None:
-        fields = json_fields
-    else:
-        fields = build_fields(
-            hours=hours,
-            activity_id=activity_id,
-            comments=comments,
-            spent_on=spent_on,
-        )
+    fields = resolve_fields(
+        json_data,
+        stdin_mode,
+        hours=hours,
+        activity_id=activity_id,
+        comments=comments,
+        spent_on=spent_on,
+    )
 
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "time_entry", "update", id=entry_id)
-        emit_dry_run("update", "time_entry", DRY_RUN_METHODS["update"], url, payload=fields)
+    if emit_dry_run_mutation(ctx, rm.url, "time_entry", "update", payload=fields, id=entry_id):
         return
 
     rm.time_entry.update(int(entry_id), **fields)
@@ -231,9 +211,7 @@ def time_entry_delete(ctx, entry_ref):
     """
     entry_id = resolve_ref(ctx, entry_ref)
     rm = get_redmine(ctx)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "time_entry", "delete", id=entry_id)
-        emit_dry_run("delete", "time_entry", DRY_RUN_METHODS["delete"], url)
+    if emit_dry_run_mutation(ctx, rm.url, "time_entry", "delete", id=entry_id):
         return
     rm.time_entry.delete(int(entry_id))
     emit({"deleted": True, "resource": "time_entry", "id": entry_id})

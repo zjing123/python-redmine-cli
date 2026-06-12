@@ -5,9 +5,10 @@ from redminelib import exceptions as redmine_exc
 from requests.exceptions import RequestException
 
 from ..config import create_redmine, load_config_file
-from ..context import DRY_RUN_METHODS, build_dry_run_url, get_redmine, resolve_ref
-from ..output import emit, emit_dry_run, handle_errors
-from ..utils import build_fields, parse_json_input, resolve_json_data, resourceset_to_list
+from ..context import get_redmine, resolve_ref
+from ..output import emit, handle_errors
+from ..utils import parse_json_input, resourceset_to_list
+from ._shared import emit_dry_run_mutation, emit_resourceset, parse_fields, resolve_fields, slice_resourceset
 
 
 @click.group("issue")
@@ -58,7 +59,7 @@ def issue_get(ctx, issue_ref, includes, fields):
     if includes:
         kwargs["include"] = includes.split(",")
     result = rm.issue.get(issue_id, **kwargs)
-    emit(result.raw(), fields=fields.split(",") if fields else None)
+    emit(result.raw(), fields=parse_fields(fields))
 
 
 @issue_group.command("list")
@@ -141,7 +142,7 @@ def issue_list(
       redmine-cli -p redminex issue list --fields id,subject,status --limit 50
     """
     filter_kwargs = {}
-    field_list = fields.split(",") if fields else None
+    field_list = parse_fields(fields)
     for key, val in [
         ("project_id", project_id),
         ("status_id", status_id),
@@ -175,16 +176,8 @@ def issue_list(
     else:
         rs = rm.issue.all()
 
-    effective_limit = None if fetch_all else limit
-    total_count = rs.total_count
-    if effective_limit is not None:
-        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
-    elif offset:
-        rs = rs[offset:]
-
-    data = resourceset_to_list(rs)
-    emit(
-        data, total_count=total_count, limit=effective_limit, offset=offset, fields=field_list
+    emit_resourceset(
+        rs, limit=limit, fetch_all=fetch_all, offset=offset, fields=field_list
     )
 
 
@@ -216,10 +209,7 @@ def _issue_list_all_profiles(
             else:
                 rs = rm.issue.all()
             pre_slice_total += rs.total_count
-            if effective_limit is not None:
-                rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
-            elif offset:
-                rs = rs[offset:]
+            rs, _ = slice_resourceset(rs, limit, fetch_all, offset)
             issues = resourceset_to_list(rs)
             for issue in issues:
                 issue["_profile"] = profile_name
@@ -290,29 +280,26 @@ def issue_create(
       echo '{"project_id":1,"subject":"Title"}' | redmine-cli -p redminex issue create --stdin
     """
     rm = get_redmine(ctx)
-    json_fields = resolve_json_data(json_data, stdin_mode)
-    if json_fields is not None:
-        fields = json_fields
-    else:
-        fields = build_fields(
-            project_id=project_id,
-            subject=subject,
-            description=description,
-            tracker_id=tracker_id,
-            status_id=status_id,
-            priority_id=priority_id,
-            assigned_to_id=assigned_to_id,
-            parent_issue_id=parent_issue_id,
-            fixed_version_id=fixed_version_id,
-        )
+    fields = resolve_fields(
+        json_data,
+        stdin_mode,
+        project_id=project_id,
+        subject=subject,
+        description=description,
+        tracker_id=tracker_id,
+        status_id=status_id,
+        priority_id=priority_id,
+        assigned_to_id=assigned_to_id,
+        parent_issue_id=parent_issue_id,
+        fixed_version_id=fixed_version_id,
+    )
+    if not (json_data or stdin_mode):
         if custom_fields:
             fields["custom_fields"] = parse_json_input(custom_fields)
         if watcher_user_ids:
             fields["watcher_user_ids"] = [int(x) for x in watcher_user_ids.split(",")]
 
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "issue", "create")
-        emit_dry_run("create", "issue", DRY_RUN_METHODS["create"], url, payload=fields)
+    if emit_dry_run_mutation(ctx, rm.url, "issue", "create", payload=fields):
         return
 
     result = rm.issue.create(**fields)
@@ -364,27 +351,24 @@ def issue_update(
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
-    json_fields = resolve_json_data(json_data, stdin_mode)
-    if json_fields is not None:
-        fields = json_fields
-    else:
-        fields = build_fields(
-            subject=subject,
-            description=description,
-            status_id=status_id,
-            assigned_to_id=assigned_to_id,
-            priority_id=priority_id,
-            fixed_version_id=fixed_version_id,
-            notes=notes,
-        )
+    fields = resolve_fields(
+        json_data,
+        stdin_mode,
+        subject=subject,
+        description=description,
+        status_id=status_id,
+        assigned_to_id=assigned_to_id,
+        priority_id=priority_id,
+        fixed_version_id=fixed_version_id,
+        notes=notes,
+    )
+    if not (json_data or stdin_mode):
         if custom_fields:
             fields["custom_fields"] = parse_json_input(custom_fields)
         if private_notes:
             fields["private_notes"] = True
 
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "issue", "update", id=issue_id)
-        emit_dry_run("update", "issue", DRY_RUN_METHODS["update"], url, payload=fields)
+    if emit_dry_run_mutation(ctx, rm.url, "issue", "update", payload=fields, id=issue_id):
         return
 
     rm.issue.update(issue_id, **fields)
@@ -408,9 +392,7 @@ def issue_delete(ctx, issue_ref):
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "issue", "delete", id=issue_id)
-        emit_dry_run("delete", "issue", DRY_RUN_METHODS["delete"], url)
+    if emit_dry_run_mutation(ctx, rm.url, "issue", "delete", id=issue_id):
         return
     rm.issue.delete(issue_id)
     emit({"deleted": True, "resource": "issue", "id": issue_id})
@@ -434,9 +416,9 @@ def issue_add_watcher(ctx, issue_ref, user_id):
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "issue", "add_watcher", id=issue_id)
-        emit_dry_run("add_watcher", "issue", DRY_RUN_METHODS["add_watcher"], url, payload={"user_id": user_id})
+    if emit_dry_run_mutation(
+        ctx, rm.url, "issue", "add_watcher", payload={"user_id": user_id}, id=issue_id
+    ):
         return
     issue = rm.issue.get(issue_id)
     issue.watcher.add(user_id)
@@ -461,9 +443,9 @@ def issue_remove_watcher(ctx, issue_ref, user_id):
     """
     issue_id = resolve_ref(ctx, issue_ref)
     rm = get_redmine(ctx)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "issue", "remove_watcher", id=issue_id, user_id=user_id)
-        emit_dry_run("remove_watcher", "issue", DRY_RUN_METHODS["remove_watcher"], url)
+    if emit_dry_run_mutation(
+        ctx, rm.url, "issue", "remove_watcher", id=issue_id, user_id=user_id
+    ):
         return
     issue = rm.issue.get(issue_id)
     issue.watcher.remove(user_id)
@@ -498,16 +480,14 @@ def issue_copy(ctx, issue_ref, project_id, link_original, includes):
     if project_id:
         kwargs["project_id"] = project_id
     inc = tuple(includes.split(",")) if includes else ()
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "issue", "copy")
-        copy_fields = {"copy_from": issue_id}
-        if project_id:
-            copy_fields["project_id"] = project_id
-        if link_original:
-            copy_fields["link_copy"] = True
-        for i in inc:
-            copy_fields[f"copy_{i}"] = True
-        emit_dry_run("copy", "issue", DRY_RUN_METHODS["copy"], url, payload=copy_fields)
+    copy_fields = {"copy_from": issue_id}
+    if project_id:
+        copy_fields["project_id"] = project_id
+    if link_original:
+        copy_fields["link_copy"] = True
+    for i in inc:
+        copy_fields[f"copy_{i}"] = True
+    if emit_dry_run_mutation(ctx, rm.url, "issue", "copy", payload=copy_fields):
         return
     result = rm.issue.get(issue_id).copy(
         link_original=link_original, include=inc, **kwargs

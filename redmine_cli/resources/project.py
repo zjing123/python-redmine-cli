@@ -2,9 +2,9 @@
 
 import click
 
-from ..context import DRY_RUN_METHODS, build_dry_run_url, get_redmine, resolve_ref
-from ..output import emit, emit_dry_run, handle_errors
-from ..utils import build_fields, resolve_json_data, resourceset_to_list
+from ..context import get_redmine, resolve_ref
+from ..output import emit, handle_errors
+from ._shared import emit_dry_run_mutation, emit_resourceset, parse_fields, resolve_fields
 
 
 @click.group("project")
@@ -46,7 +46,7 @@ def project_get(ctx, project_ref, fields):
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
     result = rm.project.get(pid)
-    emit(result.raw(), fields=fields.split(",") if fields else None)
+    emit(result.raw(), fields=parse_fields(fields))
 
 
 @project_group.command("list")
@@ -84,20 +84,8 @@ def project_list(ctx, limit, fetch_all, offset, includes, fields):
 
     rs = rm.project.all(**kwargs)
 
-    effective_limit = None if fetch_all else limit
-    total_count = rs.total_count
-    if effective_limit is not None:
-        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
-    elif offset:
-        rs = rs[offset:]
-
-    data = resourceset_to_list(rs)
-    emit(
-        data,
-        total_count=total_count,
-        limit=effective_limit,
-        offset=offset,
-        fields=fields.split(",") if fields else None,
+    emit_resourceset(
+        rs, limit=limit, fetch_all=fetch_all, offset=offset, fields=parse_fields(fields)
     )
 
 
@@ -138,24 +126,21 @@ def project_create(
       echo '{"name":"Test","identifier":"test"}' | redmine-cli -p redminex project create --stdin
     """
     rm = get_redmine(ctx)
-    json_fields = resolve_json_data(json_data, stdin_mode)
-    if json_fields is not None:
-        fields = json_fields
-    else:
-        fields = build_fields(
-            name=name,
-            identifier=identifier,
-            description=description,
-            is_public=is_public,
-            inherit_members=inherit_members,
-            parent_id=parent_id,
-        )
+    fields = resolve_fields(
+        json_data,
+        stdin_mode,
+        name=name,
+        identifier=identifier,
+        description=description,
+        is_public=is_public,
+        inherit_members=inherit_members,
+        parent_id=parent_id,
+    )
+    if not (json_data or stdin_mode):
         if tracker_ids:
             fields["tracker_ids"] = [int(x) for x in tracker_ids.split(",")]
 
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "project", "create")
-        emit_dry_run("create", "project", DRY_RUN_METHODS["create"], url, payload=fields)
+    if emit_dry_run_mutation(ctx, rm.url, "project", "create", payload=fields):
         return
 
     result = rm.project.create(**fields)
@@ -187,20 +172,16 @@ def project_update(ctx, project_ref, json_data, stdin_mode, name, description, i
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    json_fields = resolve_json_data(json_data, stdin_mode)
-    if json_fields is not None:
-        fields = json_fields
-    else:
-        fields = build_fields(
-            name=name,
-            description=description,
-            is_public=is_public,
-            parent_id=parent_id,
-        )
+    fields = resolve_fields(
+        json_data,
+        stdin_mode,
+        name=name,
+        description=description,
+        is_public=is_public,
+        parent_id=parent_id,
+    )
 
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "project", "update", id=pid)
-        emit_dry_run("update", "project", DRY_RUN_METHODS["update"], url, payload=fields)
+    if emit_dry_run_mutation(ctx, rm.url, "project", "update", payload=fields, id=pid):
         return
 
     rm.project.update(pid, **fields)
@@ -225,9 +206,7 @@ def project_delete(ctx, project_ref):
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "project", "delete", id=pid)
-        emit_dry_run("delete", "project", DRY_RUN_METHODS["delete"], url)
+    if emit_dry_run_mutation(ctx, rm.url, "project", "delete", id=pid):
         return
     rm.project.delete(pid)
     emit({"deleted": True, "resource": "project", "id": pid})
@@ -251,9 +230,7 @@ def project_close(ctx, project_ref):
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "project", "close", id=pid)
-        emit_dry_run("close", "project", DRY_RUN_METHODS["close"], url)
+    if emit_dry_run_mutation(ctx, rm.url, "project", "close", id=pid):
         return
     rm.project.close(pid)
     emit({"closed": True, "resource": "project", "id": pid})
@@ -277,9 +254,7 @@ def project_reopen(ctx, project_ref):
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "project", "reopen", id=pid)
-        emit_dry_run("reopen", "project", DRY_RUN_METHODS["reopen"], url)
+    if emit_dry_run_mutation(ctx, rm.url, "project", "reopen", id=pid):
         return
     rm.project.reopen(pid)
     emit({"reopened": True, "resource": "project", "id": pid})
@@ -303,9 +278,7 @@ def project_archive(ctx, project_ref):
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "project", "archive", id=pid)
-        emit_dry_run("archive", "project", DRY_RUN_METHODS["archive"], url)
+    if emit_dry_run_mutation(ctx, rm.url, "project", "archive", id=pid):
         return
     rm.project.archive(pid)
     emit({"archived": True, "resource": "project", "id": pid})
@@ -329,9 +302,7 @@ def project_unarchive(ctx, project_ref):
     """
     pid = resolve_ref(ctx, project_ref)
     rm = get_redmine(ctx)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "project", "unarchive", id=pid)
-        emit_dry_run("unarchive", "project", DRY_RUN_METHODS["unarchive"], url)
+    if emit_dry_run_mutation(ctx, rm.url, "project", "unarchive", id=pid):
         return
     rm.project.unarchive(pid)
     emit({"unarchived": True, "resource": "project", "id": pid})

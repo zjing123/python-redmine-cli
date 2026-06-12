@@ -2,9 +2,9 @@
 
 import click
 
-from ..context import DRY_RUN_METHODS, build_dry_run_url, get_redmine
-from ..output import emit, emit_dry_run, handle_errors
-from ..utils import build_fields, resolve_json_data, resourceset_to_list
+from ..context import get_redmine
+from ..output import emit, handle_errors
+from ._shared import emit_dry_run_mutation, emit_resourceset, parse_fields, resolve_fields
 
 
 @click.group("wiki-page")
@@ -33,7 +33,7 @@ def wiki_page_get(ctx, title, project_id, fields):
     """
     rm = get_redmine(ctx)
     result = rm.wiki_page.get(title, project_id=project_id)
-    emit(result.raw(), fields=fields.split(",") if fields else None)
+    emit(result.raw(), fields=parse_fields(fields))
 
 
 @wiki_page_group.command("list")
@@ -52,20 +52,8 @@ def wiki_page_list(ctx, project_id, limit, fetch_all, offset, fields):
     rm = get_redmine(ctx)
     rs = rm.wiki_page.filter(project_id=project_id)
 
-    effective_limit = None if fetch_all else limit
-    total_count = rs.total_count
-    if effective_limit is not None:
-        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
-    elif offset:
-        rs = rs[offset:]
-
-    data = resourceset_to_list(rs)
-    emit(
-        data,
-        total_count=total_count,
-        limit=effective_limit,
-        offset=offset,
-        fields=fields.split(",") if fields else None,
+    emit_resourceset(
+        rs, limit=limit, fetch_all=fetch_all, offset=offset, fields=parse_fields(fields)
     )
 
 
@@ -87,15 +75,11 @@ def wiki_page_create(ctx, title, project_id, json_data, stdin_mode, text, commen
     Use --json or --stdin to pass all fields at once.
     """
     rm = get_redmine(ctx)
-    json_fields = resolve_json_data(json_data, stdin_mode)
-    if json_fields is not None:
-        fields = json_fields
-    else:
-        fields = build_fields(text=text, comments=comments)
+    fields = resolve_fields(json_data, stdin_mode, text=text, comments=comments)
 
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "wiki_page", "create", project_id=project_id, title=title)
-        emit_dry_run("create", "wiki_page", DRY_RUN_METHODS["create"], url, payload=fields)
+    if emit_dry_run_mutation(
+        ctx, rm.url, "wiki_page", "create", payload=fields, project_id=project_id, title=title
+    ):
         return
 
     result = rm.wiki_page.create(title=title, project_id=project_id, **fields)
@@ -117,15 +101,11 @@ def wiki_page_update(ctx, title, project_id, json_data, stdin_mode, text, commen
     Use --json or --stdin to pass all fields at once.
     """
     rm = get_redmine(ctx)
-    json_fields = resolve_json_data(json_data, stdin_mode)
-    if json_fields is not None:
-        fields = json_fields
-    else:
-        fields = build_fields(text=text, comments=comments)
+    fields = resolve_fields(json_data, stdin_mode, text=text, comments=comments)
 
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "wiki_page", "update", project_id=project_id, title=title)
-        emit_dry_run("update", "wiki_page", DRY_RUN_METHODS["update"], url, payload=fields)
+    if emit_dry_run_mutation(
+        ctx, rm.url, "wiki_page", "update", payload=fields, project_id=project_id, title=title
+    ):
         return
 
     rm.wiki_page.update(title, project_id=project_id, **fields)
@@ -140,9 +120,9 @@ def wiki_page_update(ctx, title, project_id, json_data, stdin_mode, text, commen
 def wiki_page_delete(ctx, title, project_id):
     """Delete a wiki page permanently."""
     rm = get_redmine(ctx)
-    if ctx.obj.get("_dry_run"):
-        url = build_dry_run_url(rm.url, "wiki_page", "delete", project_id=project_id, title=title)
-        emit_dry_run("delete", "wiki_page", DRY_RUN_METHODS["delete"], url)
+    if emit_dry_run_mutation(
+        ctx, rm.url, "wiki_page", "delete", project_id=project_id, title=title
+    ):
         return
     rm.wiki_page.delete(title, project_id=project_id)
     emit({"deleted": True, "resource": "wiki_page", "title": title, "project_id": project_id})
