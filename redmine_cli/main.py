@@ -9,6 +9,7 @@ from .config import (
     save_config_file,
     DEFAULT_CONFIG_PATH,
     _extract_profile_name,
+    _deduplicate_profile_name,
     _resolve_config_path,
 )
 from .utils import resourceset_to_list
@@ -255,11 +256,6 @@ def config_set(ctx, url, api_key, username, password, profile):
     """
     data = load_config_file()
 
-    if profile and profile in data.get("profiles", {}):
-        raise click.UsageError(
-            f"Profile '{profile}' already exists. Use 'config update' to modify it."
-        )
-
     if not url:
         raise click.UsageError("--url is required.")
     if api_key and (username or password):
@@ -269,8 +265,17 @@ def config_set(ctx, url, api_key, username, password, profile):
     if (username and not password) or (password and not username):
         raise click.UsageError("--username and --password must be used together.")
 
+    # Normalize URL: strip trailing slash
+    url = url.rstrip("/")
+
     if profile is None:
         profile = _extract_profile_name(url)
+        # Auto-deduplicate when deriving from URL
+        profile = _deduplicate_profile_name(profile, data.get("profiles", {}))
+    elif profile in data.get("profiles", {}):
+        raise click.UsageError(
+            f"Profile '{profile}' already exists. Use 'config update' to modify it."
+        )
 
     section = {"url": url}
     if api_key:
@@ -346,7 +351,7 @@ def config_update(ctx, url, api_key, username, password, profile):
 
     section = data["profiles"][profile]
     if url:
-        section["url"] = url
+        section["url"] = url.rstrip("/")
     if api_key:
         section["api_key"] = api_key
         section.pop("username", None)

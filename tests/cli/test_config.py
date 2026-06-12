@@ -431,3 +431,105 @@ def test_config_update_username_without_password_rejected(tmp_path, monkeypatch)
     )
     assert result.exit_code != 0
     assert "username" in result.output.lower().replace("-", "") or "password" in result.output.lower()
+
+
+# --- URL normalization and profile name dedup ---
+
+
+def test_config_set_strips_trailing_slash(tmp_path, monkeypatch):
+    """Trailing slashes on URL should be stripped when saving."""
+    cf = _config_file(tmp_path)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["config", "set", "--url", "https://staging.test/", "--api-key", "secret"]
+    )
+    assert result.exit_code == 0
+    saved = yaml.safe_load(cf.read_text())
+    assert saved["profiles"]["staging"]["url"] == "https://staging.test"
+
+
+def test_config_set_strips_multiple_trailing_slashes(tmp_path, monkeypatch):
+    cf = _config_file(tmp_path)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["config", "set", "--url", "https://staging.test///", "--api-key", "k"]
+    )
+    assert result.exit_code == 0
+    saved = yaml.safe_load(cf.read_text())
+    assert saved["profiles"]["staging"]["url"] == "https://staging.test"
+
+
+def test_config_set_auto_dedup_profile_name(tmp_path, monkeypatch):
+    """When auto-derived name collides, append -1, -2, etc."""
+    initial = {
+        "profiles": {
+            "redminetest": {"url": "http://redminetest.kettle.net.cn", "api_key": "k1"},
+        }
+    }
+    cf = _config_file(tmp_path, initial)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["config", "set", "--url", "http://redminetest.kettle.net.cn:8080", "--api-key", "k2"],
+    )
+    assert result.exit_code == 0
+    data = parse_output(result.output)
+    assert data["data"]["profile"] == "redminetest-1"
+    saved = yaml.safe_load(cf.read_text())
+    assert "redminetest" in saved["profiles"]
+    assert "redminetest-1" in saved["profiles"]
+    assert saved["profiles"]["redminetest-1"]["url"] == "http://redminetest.kettle.net.cn:8080"
+
+
+def test_config_set_auto_dedup_increments(tmp_path, monkeypatch):
+    """When redminetest and redminetest-1 already exist, next is redminetest-2."""
+    initial = {
+        "profiles": {
+            "redminetest": {"url": "http://redminetest.kettle.net.cn", "api_key": "k1"},
+            "redminetest-1": {"url": "http://redminetest.kettle.net.cn:8080", "api_key": "k2"},
+        }
+    }
+    cf = _config_file(tmp_path, initial)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        ["config", "set", "--url", "http://redminetest.kettle.net.cn:9090", "--api-key", "k3"],
+    )
+    assert result.exit_code == 0
+    data = parse_output(result.output)
+    assert data["data"]["profile"] == "redminetest-2"
+
+
+def test_config_set_explicit_profile_still_rejects_duplicate(tmp_path, monkeypatch):
+    """Explicit -p with existing name should still error (no auto-dedup)."""
+    initial = {
+        "profiles": {"staging": {"url": "https://staging.test", "api_key": "k"}}
+    }
+    cf = _config_file(tmp_path, initial)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["config", "set", "--url", "https://new.test", "--api-key", "k2", "-p", "staging"]
+    )
+    assert result.exit_code != 0
+    assert "already exists" in result.output
+
+
+def test_config_update_strips_trailing_slash(tmp_path, monkeypatch):
+    """config update should also strip trailing slashes from URL."""
+    initial = {
+        "profiles": {"staging": {"url": "https://old.test", "api_key": "k"}}
+    }
+    cf = _config_file(tmp_path, initial)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["config", "update", "--url", "https://new.test/", "-p", "staging"]
+    )
+    assert result.exit_code == 0
+    saved = yaml.safe_load(cf.read_text())
+    assert saved["profiles"]["staging"]["url"] == "https://new.test"

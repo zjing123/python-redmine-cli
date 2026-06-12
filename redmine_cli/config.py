@@ -43,6 +43,22 @@ def _extract_profile_name(url):
     return hostname.split(".")[0]
 
 
+def _deduplicate_profile_name(base_name, existing_profiles):
+    """Return a unique profile name by appending -1, -2, ... if needed.
+
+    :param base_name: Preferred profile name (e.g. 'redminetest').
+    :param existing_profiles: Iterable of already-taken profile names.
+    :returns: Unique profile name string.
+    """
+    existing = set(existing_profiles)
+    if base_name not in existing:
+        return base_name
+    n = 1
+    while f"{base_name}-{n}" in existing:
+        n += 1
+    return f"{base_name}-{n}"
+
+
 def _resolve_config_path():
     return Path(os.environ.get("REDMINE_CONFIG", str(DEFAULT_CONFIG_PATH)))
 
