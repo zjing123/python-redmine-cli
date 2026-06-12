@@ -6,8 +6,8 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from redmine_cli.config import _extract_profile_name, create_redmine, load_config
-from redmine_cli.main import cli
+from cli.config import _extract_profile_name, create_redmine, load_config
+from cli.main import cli
 
 
 def parse_output(output):

@@ -414,7 +414,7 @@ python-redmine-cli/
 ├── pyproject.toml
 ├── README.md
 ├── .gitignore
-├── redmine_cli/
+├── src/cli/
 │   ├── __init__.py
 │   ├── main.py              # Click 根入口 + config/search 命令
 │   ├── context.py            # 延迟连接初始化

@@ -4,7 +4,7 @@ import json
 from datetime import date, datetime
 from unittest.mock import MagicMock
 
-from redmine_cli.utils import (
+from cli.utils import (
     build_fields,
     parse_json_input,
     resource_to_dict,

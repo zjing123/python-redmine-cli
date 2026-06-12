@@ -6,9 +6,9 @@ import pytest
 import yaml
 from click.testing import CliRunner
 
-from redmine_cli.config import resolve_profile_by_url
-from redmine_cli.context import resolve_ref
-from redmine_cli.main import cli
+from cli.config import resolve_profile_by_url
+from cli.context import resolve_ref
+from cli.main import cli
 
 
 def _config_file(tmp_path, data=None):
@@ -250,7 +250,7 @@ def test_issue_get_by_url(tmp_path, monkeypatch):
     monkeypatch.delenv("REDMINE_URL", raising=False)
     monkeypatch.delenv("REDMINE_API_KEY", raising=False)
 
-    with patch("redmine_cli.context.create_redmine") as mock_create:
+    with patch("cli.context.create_redmine") as mock_create:
         rm = MagicMock()
         rm.url = "https://redminex.silksoftware.com/"
         rm.issue.get.return_value = MagicMock(
@@ -292,7 +292,7 @@ def test_issue_update_by_url(tmp_path, monkeypatch):
     monkeypatch.delenv("REDMINE_URL", raising=False)
     monkeypatch.delenv("REDMINE_API_KEY", raising=False)
 
-    with patch("redmine_cli.context.create_redmine") as mock_create:
+    with patch("cli.context.create_redmine") as mock_create:
         rm = MagicMock()
         rm.url = "https://redminex.silksoftware.com/"
         mock_create.return_value = rm
@@ -317,7 +317,7 @@ def test_issue_delete_by_url(tmp_path, monkeypatch):
     monkeypatch.delenv("REDMINE_URL", raising=False)
     monkeypatch.delenv("REDMINE_API_KEY", raising=False)
 
-    with patch("redmine_cli.context.create_redmine") as mock_create:
+    with patch("cli.context.create_redmine") as mock_create:
         rm = MagicMock()
         rm.url = "https://redminex.silksoftware.com/"
         mock_create.return_value = rm
@@ -339,7 +339,7 @@ def test_project_get_by_url(tmp_path, monkeypatch):
     monkeypatch.delenv("REDMINE_URL", raising=False)
     monkeypatch.delenv("REDMINE_API_KEY", raising=False)
 
-    with patch("redmine_cli.context.create_redmine") as mock_create:
+    with patch("cli.context.create_redmine") as mock_create:
         rm = MagicMock()
         rm.url = "https://redminex.silksoftware.com/"
         rm.project.get.return_value = MagicMock(
@@ -366,7 +366,7 @@ def test_explicit_profile_overrides_url(tmp_path, monkeypatch):
     monkeypatch.delenv("REDMINE_URL", raising=False)
     monkeypatch.delenv("REDMINE_API_KEY", raising=False)
 
-    with patch("redmine_cli.context.create_redmine") as mock_create:
+    with patch("cli.context.create_redmine") as mock_create:
         rm = MagicMock()
         rm.url = "https://other.test/"
         rm.issue.get.return_value = MagicMock(raw=lambda: {"id": 1})

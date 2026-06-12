@@ -6,7 +6,7 @@
 
 ## 1. 背景与决策
 
-`redmine_cli/main.py` 当前 475 行，承载三类职责：
+`src/cli/main.py` 当前 475 行，承载三类职责：
 
 - `cli` 根命令组 + 4 个全局选项（profile / url / api-key / dry-run）
 - `config` 组及 9 个子命令（path/profiles/show/test/list/set/update/get/unset，占 ~350 行）
@@ -101,7 +101,7 @@ rm.issue.delete(issue_id)
 ### 新增包结构
 
 ```
-redmine_cli/
+src/cli/
   main.py            # 瘦身至 ~60 行: cli 组 + 全局选项 + 注册
   config.py          # 配置读写模块 (不变)
   resources/         # 资源命令组 (不变 + _shared.py)
@@ -113,7 +113,7 @@ redmine_cli/
 
 ### 依赖
 
-- `commands/config.py` ← `click`、`..config`（读写模块）、`..context.get_redmine`、`..output.{emit,handle_errors}`。命令组变量名 `config_group`，与读写模块 `redmine_cli/config.py` 仅包路径不同，**不冲突**。
+- `commands/config.py` ← `click`、`..config`（读写模块）、`..context.get_redmine`、`..output.{emit,handle_errors}`。命令组变量名 `config_group`，与读写模块 `src/cli/config.py` 仅包路径不同，**不冲突**。
 - `commands/search.py` ← `click`、`..context.get_redmine`、`..output.{emit,handle_errors}`、`..utils.resourceset_to_list`。resourceset 判定逻辑特殊，**不套 `_shared`**，原样搬迁。
 
 ### main.py 瘦身后

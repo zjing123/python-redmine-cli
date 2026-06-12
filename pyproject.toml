@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-redmine-cli = "redmine_cli.main:cli"
+redmine-cli = "cli.main:cli"
 
 [project.optional-dependencies]
 dev = [
@@ -26,7 +26,8 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["redmine_cli*"]
+where = ["src"]
+include = ["cli*"]
 
 [tool.ruff]
 target-version = "py38"

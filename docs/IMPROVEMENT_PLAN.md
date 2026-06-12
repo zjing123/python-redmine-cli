@@ -8,7 +8,7 @@
 
 ### 1. `config list` 默认输出表格而非 JSON
 
-**位置：** `redmine_cli/main.py:178-207`
+**位置：** `src/cli/main.py:178-207`
 
 README 声明"所有输出均为 JSON"，但 `config list` 不加 `--json` 时打印 ASCII 表格，Agent 解析会直接失败。`config list --json` 和 `config profiles` 返回结构也不一致（数组 vs 对象），Agent 在不同命令间切换需要处理不同结构。
 
@@ -31,7 +31,7 @@ Agent 每次都要判断"这次返回的 ID 字段叫什么"，额外消耗 toke
 
 ### 3. `add-watcher` / `remove-watcher` 响应双重嵌套 `ok`
 
-**位置：** `redmine_cli/resources/issue.py:369,382`
+**位置：** `src/cli/resources/issue.py:369,382`
 
 `emit()` 已经包裹了 `{"ok": true, "data": ...}`，内部又手动构造了 `{"ok": true, ...}`，导致：
 
@@ -69,7 +69,7 @@ Agent 不知道创建资源需要哪些必填字段、有哪些可选值。`redm
 
 ### 8. HTTP 无超时
 
-**位置：** `redmine_cli/config.py:119`
+**位置：** `src/cli/config.py:119`
 
 `Redmine()` 未传 timeout，requests 默认无限等待。Agent 调用卡住不返回时排查困难。加 30s 默认超时即可。
 
@@ -81,7 +81,7 @@ Agent 不知道创建资源需要哪些必填字段、有哪些可选值。`redm
 
 ### 10. `json.loads` 错误信息不友好
 
-**位置：** `redmine_cli/utils.py:31-33`
+**位置：** `src/cli/utils.py:31-33`
 
 Agent 看到 `JSONDecodeError at line 1 column 15` 不知道是哪个参数出错，加上参数名前缀即可。
 

@@ -68,7 +68,7 @@
 ├── .gitignore
 ├── README.md                                                      # 完整使用文档
 ├── pyproject.toml                                                 # 项目配置，依赖 python-redmine>=2.5.0, click>=8.1.0, pyyaml>=6.0
-├── redmine_cli/
+├── src/cli/
 │   ├── __init__.py
 │   ├── main.py                                                    # Click 根入口 + config/search 命令
 │   ├── context.py                                                 # get_redmine() 延迟连接初始化

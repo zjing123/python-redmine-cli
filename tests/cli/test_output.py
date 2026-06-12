@@ -5,7 +5,7 @@ import json
 import pytest
 from redminelib.exceptions import ResourceNotFoundError, ValidationError
 
-from redmine_cli.output import emit, emit_error, handle_errors
+from cli.output import emit, emit_error, handle_errors
 
 
 def test_emit_single_data(capsys):

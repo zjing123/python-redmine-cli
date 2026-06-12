@@ -14,7 +14,7 @@ def runner():
 
 @pytest.fixture
 def mock_redmine():
-    with patch("redmine_cli.context.create_redmine") as mock:
+    with patch("cli.context.create_redmine") as mock:
         rm = MagicMock()
         rm.url = "https://redmine.test"
         mock.return_value = rm
