@@ -46,7 +46,7 @@ def _filter_fields(data, fields):
     return data
 
 
-def emit(data, total_count=None, limit=None, offset=None, fields=None):
+def emit(data, total_count=None, limit=None, offset=None, fields=None, extra=None):
     """Emit a successful JSON response to stdout."""
     result = {"ok": True}
     if total_count is not None:
@@ -56,6 +56,8 @@ def emit(data, total_count=None, limit=None, offset=None, fields=None):
     if fields:
         data = _filter_fields(data, fields)
     result["data"] = data
+    if extra:
+        result.update(extra)
     click.echo(json.dumps(result, default=str, ensure_ascii=False))
 
 

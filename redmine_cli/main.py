@@ -7,9 +7,9 @@ from .context import get_redmine
 from .config import (
     load_config_file,
     save_config_file,
-    list_profiles,
     DEFAULT_CONFIG_PATH,
     _extract_profile_name,
+    _resolve_config_path,
 )
 from .utils import resourceset_to_list
 from .resources import issue, project, user, time_entry, wiki_page, generic
@@ -81,6 +81,7 @@ def config_group():
 
 
 @config_group.command("path")
+@handle_errors
 def config_path():
     """Show the config file path and whether it exists.
 
@@ -88,10 +89,12 @@ def config_path():
     Default path: ~/.config/redmine-cli/config.yaml
     Override with environment variable: REDMINE_CONFIG=/path/to/config.yaml
     """
-    emit({"path": str(DEFAULT_CONFIG_PATH), "exists": DEFAULT_CONFIG_PATH.exists()})
+    config_path = _resolve_config_path()
+    emit({"path": str(config_path), "exists": config_path.exists()})
 
 
 @config_group.command("profiles")
+@handle_errors
 def config_profiles():
     """List all configured profiles with their URLs.
 
@@ -146,6 +149,7 @@ def config_test(ctx):
     is_flag=True,
     help="Print a human-readable table instead of JSON.",
 )
+@handle_errors
 def config_list(profile, as_table):
     """List config values (secrets are masked).
 
@@ -236,6 +240,7 @@ def config_list(profile, as_table):
     help="Profile name (auto-derived from URL if omitted)",
 )
 @click.pass_context
+@handle_errors
 def config_set(ctx, url, api_key, username, password, profile):
     """Create a new profile configuration.
 
@@ -310,6 +315,7 @@ def config_set(ctx, url, api_key, username, password, profile):
     help="Profile name to update",
 )
 @click.pass_context
+@handle_errors
 def config_update(ctx, url, api_key, username, password, profile):
     """Update an existing profile configuration.
 
@@ -370,6 +376,7 @@ def config_update(ctx, url, api_key, username, password, profile):
 @config_group.command("get")
 @click.argument("key")
 @click.option("--profile", "-p", default=None, help="Get from specific profile")
+@handle_errors
 def config_get(key, profile):
     """Get a single config value by key name.
 
@@ -398,6 +405,7 @@ def config_get(key, profile):
     required=True,
     help="Profile name to remove",
 )
+@handle_errors
 def config_unset(profile):
     """Remove an entire profile and all its configuration.
 

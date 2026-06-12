@@ -5,7 +5,9 @@ import click
 from ..output import emit, handle_errors, emit_dry_run
 from ..utils import parse_json_input, resourceset_to_list, build_fields, resolve_json_data
 from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
-from ..config import create_redmine, list_profiles, load_config_file
+from ..config import create_redmine, load_config_file
+from redminelib import exceptions as redmine_exc
+from requests.exceptions import RequestException
 
 
 @click.group("issue")
@@ -197,6 +199,7 @@ def _issue_list_all_profiles(
 
     all_issues = []
     per_profile = {}
+    pre_slice_total = 0
 
     for profile_name, profile_conf in targets.items():
         try:
@@ -210,6 +213,7 @@ def _issue_list_all_profiles(
                 rs = rm.issue.filter(**local_kwargs)
             else:
                 rs = rm.issue.all()
+            pre_slice_total += rs.total_count
             if limit is not None:
                 rs = rs[offset : offset + limit] if offset else rs[:limit]
             elif offset:
@@ -223,15 +227,16 @@ def _issue_list_all_profiles(
                 "url": rm.url,
                 "count": rs.total_count,
             }
-        except Exception as e:
+        except (redmine_exc.BaseRedmineError, RequestException) as e:
             per_profile[profile_name] = {"error": str(e)}
 
     emit(
         all_issues,
-        total_count=len(all_issues),
+        total_count=pre_slice_total,
         limit=limit,
         offset=offset,
         fields=fields,
+        extra={"per_profile": per_profile},
     )
 
 

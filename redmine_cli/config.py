@@ -80,8 +80,10 @@ def load_config(profile=None):
         else:
             config = data.get("default", {})
 
-    if "api_key" in config:
+    if "api_key" in config and "key" not in config:
         config["key"] = config.pop("api_key")
+    elif "api_key" in config:
+        config.pop("api_key")
 
     env_map = {
         "url": "REDMINE_URL",
