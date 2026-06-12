@@ -1,7 +1,5 @@
 """Tests for issue CLI commands."""
 
-import json
-import pytest
 from unittest.mock import MagicMock
 
 from redmine_cli.main import cli

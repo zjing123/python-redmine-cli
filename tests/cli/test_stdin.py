@@ -1,12 +1,9 @@
 """Tests for --stdin pipe mode across all resource commands."""
 
-import json
-import pytest
 from unittest.mock import MagicMock
 
 from redmine_cli.main import cli
 from tests.cli.conftest import parse_output
-
 
 # ---------------------------------------------------------------------------
 # Issue commands (Pattern A: optional --json with flag fallback)

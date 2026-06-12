@@ -1,8 +1,9 @@
 """Tests for URL-based profile resolution and resolve_ref helper."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 import yaml
-from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
 
 from redmine_cli.config import resolve_profile_by_url

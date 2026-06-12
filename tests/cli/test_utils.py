@@ -1,17 +1,16 @@
 """Tests for serialization utilities."""
 
 import json
-import pytest
 from datetime import date, datetime
 from unittest.mock import MagicMock
 
 from redmine_cli.utils import (
-    serialize,
-    to_json,
+    build_fields,
+    parse_json_input,
     resource_to_dict,
     resourceset_to_list,
-    parse_json_input,
-    build_fields,
+    serialize,
+    to_json,
 )
 
 

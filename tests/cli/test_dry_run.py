@@ -1,12 +1,9 @@
 """Tests for --dry-run mode across all mutation commands."""
 
-import json
-import pytest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from redmine_cli.main import cli
 from tests.cli.conftest import parse_output
-
 
 # ---------------------------------------------------------------------------
 # Issue dry-run tests

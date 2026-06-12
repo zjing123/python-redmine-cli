@@ -1,12 +1,11 @@
 """Tests for output formatting module."""
 
 import json
-import sys
+
 import pytest
-from io import StringIO
+from redminelib.exceptions import ResourceNotFoundError, ValidationError
 
 from redmine_cli.output import emit, emit_error, handle_errors
-from redminelib.exceptions import ResourceNotFoundError, ValidationError
 
 
 def test_emit_single_data(capsys):

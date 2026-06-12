@@ -1,15 +1,12 @@
 """Tests for config module."""
 
 import json
-import pytest
-import tempfile
-import yaml
-from pathlib import Path
-from unittest.mock import patch
 
+import pytest
+import yaml
 from click.testing import CliRunner
 
-from redmine_cli.config import load_config, create_redmine, _extract_profile_name
+from redmine_cli.config import _extract_profile_name, create_redmine, load_config
 from redmine_cli.main import cli
 
 

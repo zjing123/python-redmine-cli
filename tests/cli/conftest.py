@@ -1,11 +1,10 @@
 """Test fixtures for redmine-cli tests."""
 
 import json
-import pytest
-from click.testing import CliRunner
 from unittest.mock import MagicMock, patch
 
-from redmine_cli.main import cli
+import pytest
+from click.testing import CliRunner
 
 
 @pytest.fixture

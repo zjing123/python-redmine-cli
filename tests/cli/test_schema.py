@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 from redmine_cli.main import cli
 from tests.cli.conftest import parse_output
 
-
 # --- Per-resource schema commands (no connection needed) ---
 
 
