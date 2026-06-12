@@ -68,7 +68,8 @@ def user_get(ctx, user_ref, includes, fields):
 )
 @click.option("--name", help="Filter by login, firstname, lastname, or email")
 @click.option("--group-id", type=int, help="Filter by group ID")
-@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
+@click.option("--limit", "-l", type=int, default=50, help="Max results (default: 50, use --all for unlimited)")
+@click.option("--all", "fetch_all", is_flag=True, help="Fetch all results (no limit)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--fields",
@@ -76,7 +77,7 @@ def user_get(ctx, user_ref, includes, fields):
 )
 @click.pass_context
 @handle_errors
-def user_list(ctx, status, name, group_id, limit, offset, fields):
+def user_list(ctx, status, name, group_id, limit, fetch_all, offset, fields):
     """List users with optional filters and pagination.
 
     \b
@@ -98,16 +99,18 @@ def user_list(ctx, status, name, group_id, limit, offset, fields):
     else:
         rs = rm.user.all()
 
-    if limit is not None:
-        rs = rs[offset : offset + limit] if offset else rs[:limit]
+    effective_limit = None if fetch_all else limit
+    total_count = rs.total_count
+    if effective_limit is not None:
+        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
     elif offset:
         rs = rs[offset:]
 
     data = resourceset_to_list(rs)
     emit(
         data,
-        total_count=rs.total_count,
-        limit=limit,
+        total_count=total_count,
+        limit=effective_limit,
         offset=offset,
         fields=fields.split(",") if fields else None,
     )

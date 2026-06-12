@@ -4,6 +4,11 @@ All output follows the convention:
   Success: {"ok": true, "data": ...}
   List:    {"ok": true, "total_count": N, "limit": N, "offset": N, "data": [...]}
   Error:   {"ok": false, "error": "...", "error_type": "..."}
+
+Exit codes:
+  0  — success
+  1  — business / runtime error
+  2  — argument / usage error
 """
 
 import sys
@@ -101,12 +106,30 @@ def emit_error(exc):
 
 
 def handle_errors(func):
-    """Decorator that catches redminelib exceptions and emits JSON errors."""
+    """Decorator that catches exceptions and emits JSON errors.
+
+    * ``click.UsageError`` / ``click.BadParameter`` → JSON + exit 2
+    * ``redminelib`` exceptions → JSON + mapped exit code (default 1)
+    * Unexpected exceptions → JSON + exit 1
+    """
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         try:
             return func(*args, **kwargs)
+        except (click.UsageError, click.BadParameter) as e:
+            click.echo(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "error": e.format_message(),
+                        "error_type": type(e).__name__,
+                    },
+                    default=str,
+                    ensure_ascii=False,
+                )
+            )
+            sys.exit(2)
         except exceptions.BaseRedmineError as e:
             emit_error(e)
         except SystemExit:

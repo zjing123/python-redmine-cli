@@ -36,16 +36,15 @@ def test_resolve_profile_by_url_exact_match(tmp_path, monkeypatch):
     assert resolve_profile_by_url("https://staging.example.com/issues/456") == "staging"
 
 
-def test_resolve_profile_by_url_default(tmp_path, monkeypatch):
+def test_resolve_profile_by_url_from_profiles(tmp_path, monkeypatch):
     cf = _config_file(tmp_path, {
-        "default": {"url": "https://default.test/", "api_key": "key0"},
         "profiles": {
             "staging": {"url": "https://staging.test/", "api_key": "key1"},
         }
     })
     monkeypatch.setenv("REDMINE_CONFIG", str(cf))
-    assert resolve_profile_by_url("https://default.test/issues/1") == "default"
     assert resolve_profile_by_url("https://staging.test/issues/2") == "staging"
+    assert resolve_profile_by_url("https://unknown.test/issues/1") is None
 
 
 def test_resolve_profile_by_url_longest_prefix(tmp_path, monkeypatch):

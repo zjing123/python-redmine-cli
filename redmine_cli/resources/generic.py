@@ -37,15 +37,34 @@ def generic_group(ctx):
     pass
 
 
+def _pascal_to_snake(name):
+    """Convert PascalCase registry key to snake_case CLI name.
+
+    Examples:
+        Issue -> issue
+        TimeEntry -> time_entry
+        WikiPage -> wiki_page
+    """
+    import re
+
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
+
 @generic_group.command("types")
 @click.pass_context
 def resource_types(ctx):
     """List all available resource types.
 
     Returns the names of all Redmine resource types supported by the library,
-    e.g. issue, project, user, version, time_entry, wiki_page, etc.
+    in snake_case format (matching the resource_name argument used by other
+    commands).  Each entry also includes the library registry key.
     """
-    emit({"resource_types": sorted(resource_registry.keys())})
+    types = []
+    for pascal in sorted(resource_registry.keys()):
+        types.append(
+            {"name": _pascal_to_snake(pascal), "library_name": pascal}
+        )
+    emit({"resource_types": types})
 
 
 @generic_group.command("get")
@@ -81,7 +100,8 @@ def resource_get(ctx, resource_name, resource_ref, fields):
 
 @generic_group.command("list")
 @click.argument("resource_name")
-@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
+@click.option("--limit", "-l", type=int, default=50, help="Max results (default: 50, use --all for unlimited)")
+@click.option("--all", "fetch_all", is_flag=True, help="Fetch all results (no limit)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--fields",
@@ -89,7 +109,7 @@ def resource_get(ctx, resource_name, resource_ref, fields):
 )
 @click.pass_context
 @handle_errors
-def resource_list(ctx, resource_name, limit, offset, fields):
+def resource_list(ctx, resource_name, limit, fetch_all, offset, fields):
     """List all resources of a given type.
 
     \b
@@ -102,16 +122,18 @@ def resource_list(ctx, resource_name, limit, offset, fields):
     manager = _get_manager(rm, resource_name)
     rs = manager.all()
 
-    if limit is not None:
-        rs = rs[offset : offset + limit] if offset else rs[:limit]
+    effective_limit = None if fetch_all else limit
+    total_count = rs.total_count
+    if effective_limit is not None:
+        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
     elif offset:
         rs = rs[offset:]
 
     data = resourceset_to_list(rs)
     emit(
         data,
-        total_count=rs.total_count,
-        limit=limit,
+        total_count=total_count,
+        limit=effective_limit,
         offset=offset,
         fields=fields.split(",") if fields else None,
     )
@@ -123,7 +145,8 @@ def resource_list(ctx, resource_name, limit, offset, fields):
     "--json", "json_data", help="JSON object with filter fields"
 )
 @click.option("--stdin", "stdin_mode", is_flag=True, help="Read JSON from stdin")
-@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
+@click.option("--limit", "-l", type=int, default=50, help="Max results (default: 50, use --all for unlimited)")
+@click.option("--all", "fetch_all", is_flag=True, help="Fetch all results (no limit)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--fields",
@@ -131,7 +154,7 @@ def resource_list(ctx, resource_name, limit, offset, fields):
 )
 @click.pass_context
 @handle_errors
-def resource_filter(ctx, resource_name, json_data, stdin_mode, limit, offset, fields):
+def resource_filter(ctx, resource_name, json_data, stdin_mode, limit, fetch_all, offset, fields):
     """Filter resources by fields.
 
     \b
@@ -148,16 +171,18 @@ def resource_filter(ctx, resource_name, json_data, stdin_mode, limit, offset, fi
     filters = resolve_json_data(json_data, stdin_mode, required=True)
     rs = manager.filter(**filters)
 
-    if limit is not None:
-        rs = rs[offset : offset + limit] if offset else rs[:limit]
+    effective_limit = None if fetch_all else limit
+    total_count = rs.total_count
+    if effective_limit is not None:
+        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
     elif offset:
         rs = rs[offset:]
 
     data = resourceset_to_list(rs)
     emit(
         data,
-        total_count=rs.total_count,
-        limit=limit,
+        total_count=total_count,
+        limit=effective_limit,
         offset=offset,
         fields=fields.split(",") if fields else None,
     )

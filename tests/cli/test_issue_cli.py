@@ -33,26 +33,21 @@ def test_issue_get_with_includes(runner, mock_redmine, set_env):
     mock_redmine.issue.get.assert_called_with(1, include=["journals", "attachments"])
 
 
-def test_issue_list(runner, mock_redmine, set_env):
+def _make_mock_set(items):
+    """Build a MagicMock ResourceSet-like object from a list of dicts."""
     mock_set = MagicMock()
-    mock_set.total_count = 2
-    mock_set.__iter__ = lambda self: iter(
-        [
-            MagicMock(raw=lambda: {"id": 1, "subject": "First"}),
-            MagicMock(raw=lambda: {"id": 2, "subject": "Second"}),
-        ]
-    )
-    mock_set.__getitem__ = lambda self, key: (
-        [
-            MagicMock(raw=lambda: {"id": 1, "subject": "First"}),
-            MagicMock(raw=lambda: {"id": 2, "subject": "Second"}),
-        ][key]
-        if isinstance(key, int)
-        else [
-            MagicMock(raw=lambda: {"id": 1, "subject": "First"}),
-            MagicMock(raw=lambda: {"id": 2, "subject": "Second"}),
-        ]
-    )
+    mock_set.total_count = len(items)
+    mock_objs = [MagicMock(raw=lambda d=d: d) for d in items]
+    mock_set.__iter__ = lambda self: iter(mock_objs)
+    mock_set.__getitem__ = lambda self, key: mock_objs[key]
+    return mock_set
+
+
+def test_issue_list(runner, mock_redmine, set_env):
+    mock_set = _make_mock_set([
+        {"id": 1, "subject": "First"},
+        {"id": 2, "subject": "Second"},
+    ])
     mock_redmine.issue.all.return_value = mock_set
     mock_redmine.issue.filter.return_value = mock_set
 

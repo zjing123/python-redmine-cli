@@ -101,11 +101,8 @@ def config_profiles():
     Shows profile names and server URLs. Does not expose credentials.
     """
     data = load_config_file()
-    default = data.get("default", {})
     profiles = data.get("profiles", {})
     result = {}
-    if default:
-        result["default"] = {"url": default.get("url", "")}
     for name, conf in profiles.items():
         result[name] = {"url": conf.get("url", "")}
     emit({"profiles": result})
@@ -159,13 +156,8 @@ def config_list(profile, as_table):
     data = load_config_file()
     targets = {}
     if profile:
-        if profile == "default":
-            targets[profile] = data.get("default", {})
-        else:
-            targets[profile] = data.get("profiles", {}).get(profile, {})
+        targets[profile] = data.get("profiles", {}).get(profile, {})
     else:
-        if data.get("default"):
-            targets["default"] = data["default"]
         for name in sorted(data.get("profiles", {})):
             targets[name] = data["profiles"][name]
 
@@ -384,18 +376,14 @@ def config_get(key, profile):
     Use -p to read from a specific profile.
     """
     data = load_config_file()
-    section = (
-        data.get("profiles", {}).get(profile, {})
-        if profile
-        else data.get("default", {})
-    )
+    section = data.get("profiles", {}).get(profile, {})
     value = section.get(key)
     if value is None:
         emit({"key": key, "value": None})
     else:
         if key in ("api_key", "key", "password"):
             value = "****" + str(value)[-4:]
-        emit({"key": key, "value": value, "profile": profile or "default"})
+        emit({"key": key, "value": value, "profile": profile or None})
 
 
 @config_group.command("unset")

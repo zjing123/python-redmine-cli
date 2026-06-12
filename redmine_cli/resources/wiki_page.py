@@ -38,7 +38,8 @@ def wiki_page_get(ctx, title, project_id, fields):
 
 @wiki_page_group.command("list")
 @click.option("--project-id", required=True, type=int, help="Project ID (required)")
-@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
+@click.option("--limit", "-l", type=int, default=50, help="Max results (default: 50, use --all for unlimited)")
+@click.option("--all", "fetch_all", is_flag=True, help="Fetch all results (no limit)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--fields",
@@ -46,21 +47,23 @@ def wiki_page_get(ctx, title, project_id, fields):
 )
 @click.pass_context
 @handle_errors
-def wiki_page_list(ctx, project_id, limit, offset, fields):
+def wiki_page_list(ctx, project_id, limit, fetch_all, offset, fields):
     """List wiki pages in a project. --project-id is required."""
     rm = get_redmine(ctx)
     rs = rm.wiki_page.filter(project_id=project_id)
 
-    if limit is not None:
-        rs = rs[offset : offset + limit] if offset else rs[:limit]
+    effective_limit = None if fetch_all else limit
+    total_count = rs.total_count
+    if effective_limit is not None:
+        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
     elif offset:
         rs = rs[offset:]
 
     data = resourceset_to_list(rs)
     emit(
         data,
-        total_count=rs.total_count,
-        limit=limit,
+        total_count=total_count,
+        limit=effective_limit,
         offset=offset,
         fields=fields.split(",") if fields else None,
     )

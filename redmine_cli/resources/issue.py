@@ -87,7 +87,8 @@ def issue_get(ctx, issue_ref, includes, fields):
 @click.option("--parent-id", type=int, help="Filter by parent issue ID")
 @click.option("--query-id", type=int, help="Use a saved Redmine query by ID")
 @click.option("--sort", help="Sort expression, e.g. updated_on:desc or priority:asc")
-@click.option("--limit", "-l", type=int, default=None, help="Max results (unlimited if omitted)")
+@click.option("--limit", "-l", type=int, default=50, help="Max results (default: 50, use --all for unlimited)")
+@click.option("--all", "fetch_all", is_flag=True, help="Fetch all results (no limit)")
 @click.option("--offset", type=int, default=0, help="Result offset for pagination")
 @click.option(
     "--include",
@@ -117,6 +118,7 @@ def issue_list(
     query_id,
     sort,
     limit,
+    fetch_all,
     offset,
     includes,
     fields,
@@ -160,7 +162,7 @@ def issue_list(
 
     if all_profiles:
         _issue_list_all_profiles(
-            ctx, assigned_to_me, filter_kwargs, limit, offset, field_list
+            ctx, assigned_to_me, filter_kwargs, limit, fetch_all, offset, field_list
         )
         return
 
@@ -173,33 +175,33 @@ def issue_list(
     else:
         rs = rm.issue.all()
 
-    if limit is not None:
-        rs = rs[offset : offset + limit] if offset else rs[:limit]
+    effective_limit = None if fetch_all else limit
+    total_count = rs.total_count
+    if effective_limit is not None:
+        rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
     elif offset:
         rs = rs[offset:]
 
     data = resourceset_to_list(rs)
     emit(
-        data, total_count=rs.total_count, limit=limit, offset=offset, fields=field_list
+        data, total_count=total_count, limit=effective_limit, offset=offset, fields=field_list
     )
 
 
 def _issue_list_all_profiles(
-    ctx, assigned_to_me, filter_kwargs, limit, offset, fields=None
+    ctx, assigned_to_me, filter_kwargs, limit, fetch_all, offset, fields=None
 ):
     """Query issues from all profiles and merge results."""
     data = load_config_file()
     profiles_config = data.get("profiles", {})
-    default_config = data.get("default", {})
 
-    targets = {}
-    if default_config:
-        targets["default"] = default_config
-    targets.update(profiles_config)
+    targets = dict(profiles_config)
 
     all_issues = []
     per_profile = {}
     pre_slice_total = 0
+
+    effective_limit = None if fetch_all else limit
 
     for profile_name, profile_conf in targets.items():
         try:
@@ -214,8 +216,8 @@ def _issue_list_all_profiles(
             else:
                 rs = rm.issue.all()
             pre_slice_total += rs.total_count
-            if limit is not None:
-                rs = rs[offset : offset + limit] if offset else rs[:limit]
+            if effective_limit is not None:
+                rs = rs[offset : offset + effective_limit] if offset else rs[:effective_limit]
             elif offset:
                 rs = rs[offset:]
             issues = resourceset_to_list(rs)
@@ -233,7 +235,7 @@ def _issue_list_all_profiles(
     emit(
         all_issues,
         total_count=pre_slice_total,
-        limit=limit,
+        limit=effective_limit,
         offset=offset,
         fields=fields,
         extra={"per_profile": per_profile},

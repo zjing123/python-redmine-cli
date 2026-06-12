@@ -1,6 +1,6 @@
 """Tests for config module."""
 
-import os
+import json
 import pytest
 import tempfile
 import yaml
@@ -14,8 +14,6 @@ from redmine_cli.main import cli
 
 
 def parse_output(output):
-    import json
-
     return json.loads(output)
 
 
@@ -27,14 +25,14 @@ def test_load_config_from_env(monkeypatch):
     assert config["key"] == "envkey123"
 
 
-def test_load_config_from_file(monkeypatch, tmp_path):
+def test_load_config_no_profile_returns_env_only(monkeypatch, tmp_path):
+    """Without a profile, load_config returns env vars only."""
     config_file = tmp_path / ".redmine-cli.yaml"
     config_file.write_text(
         yaml.dump(
             {
-                "default": {
-                    "url": "https://file.test",
-                    "api_key": "filekey123",
+                "profiles": {
+                    "staging": {"url": "https://staging.test", "api_key": "key"},
                 }
             }
         )
@@ -43,8 +41,7 @@ def test_load_config_from_file(monkeypatch, tmp_path):
     monkeypatch.delenv("REDMINE_URL", raising=False)
     monkeypatch.delenv("REDMINE_API_KEY", raising=False)
     config = load_config()
-    assert config["url"] == "https://file.test"
-    assert config["key"] == "filekey123"
+    assert config == {}
 
 
 def test_load_config_profile(monkeypatch, tmp_path):
@@ -52,7 +49,6 @@ def test_load_config_profile(monkeypatch, tmp_path):
     config_file.write_text(
         yaml.dump(
             {
-                "default": {"url": "https://default.test"},
                 "profiles": {
                     "staging": {"url": "https://staging.test", "api_key": "stagingkey"},
                 },
@@ -70,12 +66,18 @@ def test_load_config_profile(monkeypatch, tmp_path):
 def test_load_config_env_overrides_file(monkeypatch, tmp_path):
     config_file = tmp_path / ".redmine-cli.yaml"
     config_file.write_text(
-        yaml.dump({"default": {"url": "https://file.test", "api_key": "filekey"}})
+        yaml.dump(
+            {
+                "profiles": {
+                    "staging": {"url": "https://file.test", "api_key": "filekey"},
+                }
+            }
+        )
     )
     monkeypatch.setenv("REDMINE_CONFIG", str(config_file))
     monkeypatch.setenv("REDMINE_URL", "https://env.test")
     monkeypatch.setenv("REDMINE_API_KEY", "envkey")
-    config = load_config()
+    config = load_config(profile="staging")
     assert config["url"] == "https://env.test"
     assert config["key"] == "envkey"
 
@@ -84,8 +86,12 @@ def test_create_redmine_missing_url(monkeypatch, tmp_path):
     monkeypatch.setenv("REDMINE_CONFIG", str(tmp_path / "nonexistent.yaml"))
     monkeypatch.delenv("REDMINE_URL", raising=False)
     monkeypatch.delenv("REDMINE_API_KEY", raising=False)
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as exc_info:
         create_redmine()
+    # SystemExit message is a JSON string
+    data = json.loads(str(exc_info.value))
+    assert data["ok"] is False
+    assert "REDMINE_URL" in data["error"]
 
 
 def test_extract_profile_name():
@@ -285,9 +291,9 @@ def test_config_update_nonexistent_profile(tmp_path, monkeypatch):
 
 def test_config_list_default_is_json(tmp_path, monkeypatch):
     initial = {
-        "default": {"url": "https://default.test", "api_key": "defaultkey"},
         "profiles": {
             "staging": {"url": "https://staging.test", "api_key": "stagingkey"},
+            "prod": {"url": "https://prod.test", "api_key": "prodkey"},
         },
     }
     cf = _config_file(tmp_path, initial)
@@ -299,13 +305,13 @@ def test_config_list_default_is_json(tmp_path, monkeypatch):
     assert data["ok"] is True
     profiles = data["data"]["profiles"]
     assert len(profiles) == 2
-    assert profiles[0]["profile"] == "default"
-    assert profiles[1]["profile"] == "staging"
+    names = [p["profile"] for p in profiles]
+    assert "staging" in names
+    assert "prod" in names
 
 
 def test_config_list_print_table(tmp_path, monkeypatch):
     initial = {
-        "default": {"url": "https://default.test", "api_key": "defaultkey"},
         "profiles": {
             "staging": {"url": "https://staging.test", "api_key": "stagingkey"},
             "prod": {
@@ -321,7 +327,6 @@ def test_config_list_print_table(tmp_path, monkeypatch):
     result = runner.invoke(cli, ["config", "list", "--print"])
     assert result.exit_code == 0
     assert "PROFILE" in result.output
-    assert "default" in result.output
     assert "staging" in result.output
     assert "prod" in result.output
     assert "****gkey" in result.output
@@ -348,31 +353,6 @@ def test_config_list_specific_profile(tmp_path, monkeypatch):
             "url": "https://prod.test",
             "auth": "api_key",
             "api_key": "****dkey",
-            "username": "",
-            "password": "",
-        }
-    ]
-
-
-def test_config_list_default_profile(tmp_path, monkeypatch):
-    initial = {
-        "default": {"url": "https://default.test", "api_key": "defaultkey"},
-        "profiles": {
-            "prod": {"url": "https://prod.test", "api_key": "prodkey"},
-        },
-    }
-    cf = _config_file(tmp_path, initial)
-    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
-    runner = CliRunner()
-    result = runner.invoke(cli, ["config", "list", "-p", "default"])
-    assert result.exit_code == 0
-    data = parse_output(result.output)
-    assert data["data"]["profiles"] == [
-        {
-            "profile": "default",
-            "url": "https://default.test",
-            "auth": "api_key",
-            "api_key": "****tkey",
             "username": "",
             "password": "",
         }

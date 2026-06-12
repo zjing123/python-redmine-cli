@@ -4,6 +4,7 @@ Supports: CLI args > env vars > config file > defaults.
 Config file: ~/.config/redmine-cli/config.yaml
 """
 
+import json
 import os
 from pathlib import Path
 from urllib.parse import urlparse
@@ -64,22 +65,25 @@ def save_config_file(data):
 
 
 def load_config(profile=None):
-    """Load configuration from file, environment variables, and defaults.
+    """Load configuration from file and environment variables.
 
-    If no profile specified, merges default + env overrides.
-    If profile specified, uses that profile's config + env overrides.
+    All accounts live under ``profiles`` in the config file.
+    A *profile* name is required — either passed explicitly or resolved
+    from a URL via :func:`resolve_profile_by_url`.
+
+    If *profile* is ``None`` the function returns an empty dict so that
+    env-var-only usage (``REDMINE_URL`` + ``REDMINE_API_KEY``) still works.
     """
     config_path = _resolve_config_path()
     config = {}
 
-    if config_path.exists():
+    if profile and config_path.exists():
         with open(config_path) as f:
             data = yaml.safe_load(f) or {}
-        if profile and profile in data.get("profiles", {}):
-            config = data["profiles"][profile]
-        else:
-            config = data.get("default", {})
+        if profile in data.get("profiles", {}):
+            config = dict(data["profiles"][profile])
 
+    # Normalise api_key -> key for python-redmine
     if "api_key" in config and "key" not in config:
         config["key"] = config.pop("api_key")
     elif "api_key" in config:
@@ -128,12 +132,6 @@ def resolve_profile_by_url(url):
             best_match = name
             best_len = len(profile_url)
 
-    default = data.get("default", {})
-    if default:
-        default_url = default.get("url", "").rstrip("/")
-        if url_clean.startswith(default_url) and len(default_url) > best_len:
-            best_match = "default"
-
     return best_match
 
 
@@ -150,7 +148,12 @@ def create_redmine(profile=None, **overrides):
 
     url = config.pop("url", None)
     if not url:
-        raise SystemExit('{"ok": false, "error": "REDMINE_URL is required"}')
+        raise SystemExit(
+            json.dumps(
+                {"ok": False, "error": "REDMINE_URL is required"},
+                ensure_ascii=False,
+            )
+        )
 
     kwargs = {"url": url}
 

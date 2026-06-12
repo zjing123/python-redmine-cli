@@ -13,9 +13,16 @@ def test_resource_types(runner, mock_redmine, set_env):
     assert result.exit_code == 0
     data = parse_output(result.output)
     assert data["ok"] is True
-    assert "Issue" in data["data"]["resource_types"]
-    assert "Project" in data["data"]["resource_types"]
-    assert "User" in data["data"]["resource_types"]
+    types = data["data"]["resource_types"]
+    # Verify snake_case names are present
+    names = [t["name"] for t in types]
+    assert "issue" in names
+    assert "project" in names
+    assert "user" in names
+    # Verify library_name (PascalCase) is also present
+    lib_names = [t["library_name"] for t in types]
+    assert "Issue" in lib_names
+    assert "Project" in lib_names
 
 
 def test_resource_get(runner, mock_redmine, set_env):

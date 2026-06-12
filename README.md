@@ -50,16 +50,20 @@ uv tool install --force /path/to/redmine-cli
 
 ```bash
 # 1. 配置连接（使用 API Key）
+#    不带 -p 时自动从 URL 提取 profile 名（如 https://redmine.example.com -> redmine）
 redmine-cli config set --url https://redmine.example.com/ --api-key your_api_key_here
 
 # 或使用用户名密码
 redmine-cli config set --url https://redmine.example.com/ --username admin --password secret
 
-# 2. 测试连接
-redmine-cli config test
+# 2. 测试连接（需要指定 profile，或使用环境变量）
+redmine-cli -p redmine config test
 
-# 3. 开始使用
-redmine-cli issue list --assigned-to-me --status open
+# 3. 开始使用（-p 指定 profile）
+redmine-cli -p redmine issue list --assigned-to-me --status open
+
+# 4. 也可以直接用完整 URL（自动匹配 profile）
+redmine-cli issue get https://redmine.example.com/issues/123
 ```
 
 ## 配置
@@ -107,11 +111,11 @@ redmine-cli --url https://redmine.example.com/ --api-key xxx issue list
 编辑 `~/.config/redmine-cli/config.yaml`：
 
 ```yaml
-default:
-  url: https://redmine.example.com/
-  api_key: your_api_key
-
 profiles:
+  redmine:
+    url: https://redmine.example.com/
+    api_key: your_api_key
+
   staging:
     url: https://staging.redmine.example.com/
     api_key: staging_key
@@ -125,7 +129,7 @@ profiles:
 使用指定 profile：
 
 ```bash
-redmine-cli -p staging issue list
+redmine-cli -p redmine issue list
 ```
 
 ### 配置管理命令

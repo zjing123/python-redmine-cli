@@ -3,6 +3,8 @@
 import re
 from urllib.parse import urlparse
 
+import json
+
 import click
 
 from .config import create_redmine, resolve_profile_by_url
@@ -83,7 +85,13 @@ def get_redmine(ctx):
         except SystemExit:
             raise
         except Exception as e:
-            click.echo(f'{{"ok": false, "error": "{e}"}}')
+            click.echo(
+                json.dumps(
+                    {"ok": False, "error": str(e), "error_type": type(e).__name__},
+                    default=str,
+                    ensure_ascii=False,
+                )
+            )
             raise click.Abort()
     return ctx.obj["redmine"]
 
