@@ -94,8 +94,11 @@ Agent 看到 `JSONDecodeError at line 1 column 15` 不知道是哪个参数出�
 - 单元测试补齐（手动端到端验证足够）
 - Shell 自动补全（给 Agent 用的，不是人敲的）
 - `--all-profiles` 并行化（个人 1-2 个 profile，串行不是瓶颈）
-- `main.py` 拆分（460 行对个人项目完全可接受）
-- 消除分页/ID 转换代码重复（不影响功能）
 - README 英文化、CHANGELOG、pyproject metadata
 - 配置文件权限加固（个人机器）
 - 真实 Redmine 集成测试
+
+> **2026-06-12 更新：** 以下两项原列于本「不做」清单，经重新评估已决定执行，详见 [`docs/plans/2026-06-12-main-refactor-design.md`](plans/2026-06-12-main-refactor-design.md)：
+>
+> - `main.py` 拆分（拆出 `commands/config.py`、`commands/search.py`，main.py 瘦身至 ~60 行）
+> - 消除分页/字段解析/dry-run 等资源层重复（抽取 `resources/_shared.py`）
