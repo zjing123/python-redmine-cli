@@ -1,10 +1,18 @@
 {
   "name": "redmine-cli",
+  "owner": {
+    "name": "zjing123"
+  },
+  "metadata": {
+    "description": "Redmine CLI - Agent-friendly Redmine issue query skill",
+    "version": "0.2.0"
+  },
   "plugins": [
     {
       "name": "redmine-reader",
       "description": "Read-only Redmine issue query skill, powered by redmine-cli",
       "source": "./",
+      "strict": false,
       "skills": [
         "./skills/redmine-reader"
       ]
