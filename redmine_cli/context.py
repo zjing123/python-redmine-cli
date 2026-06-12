@@ -1,7 +1,7 @@
 """Shared context helpers for redmine-cli."""
 
 import re
-from urllib.parse import urlparse
+from urllib.parse import quote, urlparse
 
 import json
 
@@ -63,7 +63,8 @@ def build_dry_run_url(base_url, resource_type, operation, **kwargs):
     """
     pattern = RESOURCE_URLS.get((resource_type, operation))
     if pattern:
-        return base_url.rstrip("/") + pattern.format(**kwargs)
+        encoded = {k: quote(str(v), safe="") for k, v in kwargs.items()}
+        return base_url.rstrip("/") + pattern.format(**encoded)
     # Generic fallback for unknown resource types
     if operation == "create":
         return f"{base_url.rstrip('/')}/{resource_type}s.json"
