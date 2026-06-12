@@ -1,12 +1,23 @@
 """Root CLI entry point and global options."""
 
+from importlib.metadata import version as pkg_version
+
 import click
 
 from .commands import config_group, search
 from .resources import generic, issue, project, time_entry, user, wiki_page
 
 
+def _get_version():
+    """Read version from installed package metadata."""
+    try:
+        return pkg_version("redmine-cli")
+    except Exception:
+        return "0.0.0-dev"
+
+
 @click.group()
+@click.version_option(version=_get_version(), prog_name="redmine-cli")
 @click.option(
     "--profile",
     "-p",
