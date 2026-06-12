@@ -341,6 +341,8 @@ def config_update(ctx, url, api_key, username, password, profile):
         )
     if password and not username:
         raise click.UsageError("--password requires --username.")
+    if username and not password:
+        raise click.UsageError("--username requires --password.")
 
     section = data["profiles"][profile]
     if url:

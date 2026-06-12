@@ -512,3 +512,65 @@ class TestDryRunValidation:
             ["--dry-run", "resource", "create", "issue", "--json", "bad json"],
         )
         assert result.exit_code != 0
+
+
+# ---------------------------------------------------------------------------
+# Dry-run sensitive data masking
+# ---------------------------------------------------------------------------
+
+
+class TestDryRunSensitiveMasking:
+    """Sensitive fields must be masked in dry-run output."""
+
+    def test_user_create_dry_run_masks_password(self, runner, mock_redmine, set_env):
+        result = runner.invoke(
+            cli,
+            [
+                "--dry-run",
+                "user",
+                "create",
+                "--login",
+                "testuser",
+                "--firstname",
+                "Test",
+                "--lastname",
+                "User",
+                "--mail",
+                "test@example.com",
+                "--password",
+                "supersecret123",
+            ],
+        )
+        assert result.exit_code == 0
+        data = parse_output(result.output)
+        assert data["data"]["payload"]["password"] == "****"
+        assert "supersecret123" not in result.output
+
+    def test_user_update_dry_run_masks_password(self, runner, mock_redmine, set_env):
+        result = runner.invoke(
+            cli,
+            ["--dry-run", "user", "update", "5", "--password", "mysecret"],
+        )
+        assert result.exit_code == 0
+        data = parse_output(result.output)
+        assert data["data"]["payload"]["password"] == "****"
+        assert "mysecret" not in result.output
+
+    def test_generic_create_dry_run_masks_nested_sensitive(self, runner, mock_redmine, set_env):
+        """Nested sensitive keys should also be masked."""
+        result = runner.invoke(
+            cli,
+            [
+                "--dry-run",
+                "resource",
+                "create",
+                "user",
+                '--json',
+                '{"login":"admin","password":"secret","firstname":"Admin"}',
+            ],
+        )
+        assert result.exit_code == 0
+        data = parse_output(result.output)
+        assert data["data"]["payload"]["password"] == "****"
+        assert data["data"]["payload"]["login"] == "admin"
+        assert "secret" not in result.output

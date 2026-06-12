@@ -57,11 +57,41 @@ def load_config_file():
 
 
 def save_config_file(data):
-    """Save config data to file, creating directories as needed."""
+    """Save config data to file, creating directories as needed.
+
+    Ensures restrictive permissions: directory 0700, file 0600,
+    because the config contains API keys and passwords.
+    Uses atomic write (write to temp file + rename) to avoid partial writes.
+    """
+    import tempfile
+
     config_path = _resolve_config_path()
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(config_path, "w") as f:
-        yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+
+    # Enforce directory permission 0700
+    try:
+        config_path.parent.chmod(0o700)
+    except OSError:
+        pass
+
+    # Atomic write: write to temp file then rename
+    dir_fd = os.open(str(config_path.parent), os.O_RDONLY)
+    try:
+        fd, tmp_path = tempfile.mkstemp(dir=str(config_path.parent))
+        try:
+            with os.fdopen(fd, "w") as f:
+                yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+            os.chmod(tmp_path, 0o600)
+            os.replace(tmp_path, str(config_path))
+        except BaseException:
+            # Clean up temp file on failure
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
+    finally:
+        os.close(dir_fd)
 
 
 def load_config(profile=None):
@@ -114,21 +144,55 @@ def list_profiles():
 def resolve_profile_by_url(url):
     """Match a full Redmine URL against configured profiles.
 
-    Uses longest prefix match so subpath-hosted Redmine instances
+    Compares scheme + host + port exactly, then does longest-path prefix
+    matching so subpath-hosted Redmine instances
     (e.g. https://host/redmine2/) are handled correctly.
+
+    Uses urlparse for safe boundary matching — prevents
+    ``https://redmine.example.com.evil.test`` from matching a profile
+    configured for ``https://redmine.example.com``.
 
     :param url: Full Redmine URL, e.g. https://redminex.example.com/issues/123
     :returns: Profile name string, or None if no match.
     """
     data = load_config_file()
-    url_clean = url.rstrip("/")
+    parsed_input = urlparse(url.rstrip("/"))
 
     best_match = None
     best_len = 0
 
     for name, conf in data.get("profiles", {}).items():
         profile_url = conf.get("url", "").rstrip("/")
-        if url_clean.startswith(profile_url) and len(profile_url) > best_len:
+        if not profile_url:
+            continue
+        parsed_profile = urlparse(profile_url)
+
+        # Exact match on scheme + host + port
+        input_origin = (parsed_input.scheme, parsed_input.hostname,
+                        parsed_input.port)
+        profile_origin = (parsed_profile.scheme, parsed_profile.hostname,
+                          parsed_profile.port)
+        if input_origin != profile_origin:
+            continue
+
+        # Path prefix match (trailing-slash safe)
+        input_path = (parsed_input.path or "/").rstrip("/")
+        profile_path = (parsed_profile.path or "/").rstrip("/")
+        if not profile_path:
+            profile_path = ""
+        if not input_path:
+            input_path = ""
+
+        # Root path (empty after rstrip) matches everything under that origin
+        if profile_path == "":
+            path_matches = True
+        else:
+            path_matches = (
+                input_path == profile_path
+                or input_path.startswith(profile_path + "/")
+            )
+
+        if path_matches and len(profile_url) > best_len:
             best_match = name
             best_len = len(profile_url)
 

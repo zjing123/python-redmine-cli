@@ -387,3 +387,47 @@ def test_config_unset_nonexistent_profile(tmp_path, monkeypatch):
     assert result.exit_code == 0
     data = parse_output(result.output)
     assert data["data"]["unset"] is False
+
+
+# --- config file permissions ---
+
+
+def test_save_config_file_sets_restrictive_permissions(tmp_path, monkeypatch):
+    """Saved config files must have 0600 permissions (owner read/write only)."""
+    import os
+    import stat
+
+    cf = tmp_path / "perm_config.yaml"
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["config", "set", "--url", "https://secret.test", "--api-key", "k123"]
+    )
+    assert result.exit_code == 0
+
+    # File should be 0600
+    file_mode = stat.S_IMODE(os.stat(cf).st_mode)
+    assert file_mode == 0o600, f"Expected 0o600, got {oct(file_mode)}"
+
+    # Parent directory should be 0700
+    dir_mode = stat.S_IMODE(os.stat(cf.parent).st_mode)
+    assert dir_mode == 0o700, f"Expected 0o700, got {oct(dir_mode)}"
+
+
+# --- config update: username without password ---
+
+
+def test_config_update_username_without_password_rejected(tmp_path, monkeypatch):
+    """--username without --password should be rejected in config update."""
+    initial = {
+        "profiles": {"staging": {"url": "https://staging.test", "api_key": "oldkey"}}
+    }
+    cf = _config_file(tmp_path, initial)
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    runner = CliRunner()
+    result = runner.invoke(
+        cli, ["config", "update", "--username", "admin", "-p", "staging"]
+    )
+    assert result.exit_code != 0
+    assert "username" in result.output.lower().replace("-", "") or "password" in result.output.lower()

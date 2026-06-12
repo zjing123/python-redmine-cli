@@ -70,6 +70,48 @@ def test_resolve_profile_by_url_no_match(tmp_path, monkeypatch):
     assert resolve_profile_by_url("https://unknown.test/issues/1") is None
 
 
+def test_resolve_profile_by_url_prevents_host_confusion(tmp_path, monkeypatch):
+    """A lookalike hostname must NOT match a configured profile.
+
+    https://redmine.example.com.evil.test must not match a profile
+    configured for https://redmine.example.com.
+    """
+    cf = _config_file(tmp_path, {
+        "profiles": {
+            "prod": {"url": "https://redmine.example.com/", "api_key": "k"},
+        }
+    })
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+
+    # Legitimate match
+    assert resolve_profile_by_url("https://redmine.example.com/issues/1") == "prod"
+
+    # Lookalike hostname — must NOT match
+    assert resolve_profile_by_url("https://redmine.example.com.evil.test/issues/1") is None
+
+
+def test_resolve_profile_by_url_different_scheme_no_match(tmp_path, monkeypatch):
+    """http vs https must not cross-match."""
+    cf = _config_file(tmp_path, {
+        "profiles": {
+            "secure": {"url": "https://redmine.test/", "api_key": "k"},
+        }
+    })
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    assert resolve_profile_by_url("http://redmine.test/issues/1") is None
+
+
+def test_resolve_profile_by_url_different_port_no_match(tmp_path, monkeypatch):
+    """Different ports must not cross-match."""
+    cf = _config_file(tmp_path, {
+        "profiles": {
+            "default": {"url": "https://redmine.test/", "api_key": "k"},
+        }
+    })
+    monkeypatch.setenv("REDMINE_CONFIG", str(cf))
+    assert resolve_profile_by_url("https://redmine.test:8443/issues/1") is None
+
+
 # --- resolve_ref ---
 
 

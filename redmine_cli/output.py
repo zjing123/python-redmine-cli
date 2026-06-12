@@ -14,6 +14,7 @@ Exit codes:
 import sys
 import json
 import functools
+import re
 
 import click
 from redminelib import exceptions
@@ -66,11 +67,54 @@ def emit(data, total_count=None, limit=None, offset=None, fields=None, extra=Non
     click.echo(json.dumps(result, default=str, ensure_ascii=False))
 
 
+def _mask_sensitive_keys(obj, _seen=None):
+    """Recursively mask sensitive values in a nested dict/list structure.
+
+    Keys matching common sensitive patterns (password, token, api_key, secret,
+    etc.) have their values replaced with '****'.  Non-dict/non-list values
+    are returned unchanged.
+    """
+    if _seen is None:
+        _seen = set()
+
+    if isinstance(obj, dict):
+        obj_id = id(obj)
+        if obj_id in _seen:
+            return obj
+        _seen.add(obj_id)
+        masked = {}
+        for k, v in obj.items():
+            if _is_sensitive_key(k):
+                masked[k] = "****"
+            else:
+                masked[k] = _mask_sensitive_keys(v, _seen)
+        return masked
+
+    if isinstance(obj, list):
+        return [_mask_sensitive_keys(item, _seen) for item in obj]
+
+    return obj
+
+
+_SENSITIVE_PATTERN = re.compile(
+    r"(password|passwd|secret|token|api_key|apikey|api_secret|"
+    r"private_key|access_key|auth_token|credentials?)",
+    re.IGNORECASE,
+)
+
+
+def _is_sensitive_key(key):
+    """Return True if *key* looks like it holds a secret."""
+    return bool(_SENSITIVE_PATTERN.search(key))
+
+
 def emit_dry_run(operation, resource_type, method, url, payload=None):
     """Emit a dry-run response showing what would be sent to the API.
 
     Outputs the same {"ok": true, "data": ...} envelope but with an extra
     top-level "dry_run": true key so consumers can detect it programmatically.
+    Sensitive fields (password, token, api_key, etc.) in *payload* are
+    automatically masked with '****'.
 
     :param operation: 'create', 'update', 'delete', 'close', 'reopen', etc.
     :param resource_type: 'issue', 'project', 'user', etc.
@@ -86,7 +130,7 @@ def emit_dry_run(operation, resource_type, method, url, payload=None):
         "url": url,
     }
     if payload:
-        data["payload"] = payload
+        data["payload"] = _mask_sensitive_keys(payload)
     result = {"ok": True, "dry_run": True, "data": data}
     click.echo(json.dumps(result, default=str, ensure_ascii=False))
 
