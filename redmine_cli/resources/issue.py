@@ -1,13 +1,13 @@
 """Issue subcommands for redmine-cli."""
 
 import click
-
-from ..output import emit, handle_errors, emit_dry_run
-from ..utils import parse_json_input, resourceset_to_list, build_fields, resolve_json_data
-from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
-from ..config import create_redmine, load_config_file
 from redminelib import exceptions as redmine_exc
 from requests.exceptions import RequestException
+
+from ..config import create_redmine, load_config_file
+from ..context import DRY_RUN_METHODS, build_dry_run_url, get_redmine, resolve_ref
+from ..output import emit, emit_dry_run, handle_errors
+from ..utils import build_fields, parse_json_input, resolve_json_data, resourceset_to_list
 
 
 @click.group("issue")
@@ -552,7 +552,7 @@ def issue_schema(ctx, live):
       redmine-cli issue schema
       redmine-cli -p prod issue schema --live
     """
-    from ..schema import get_resource_schema, get_live_enums
+    from ..schema import get_live_enums, get_resource_schema
 
     schema = get_resource_schema("issue")
     if live:

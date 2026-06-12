@@ -1,14 +1,12 @@
 """Shared context helpers for redmine-cli."""
 
+import json
 import re
 from urllib.parse import quote, urlparse
-
-import json
 
 import click
 
 from .config import create_redmine, resolve_profile_by_url
-
 
 # URL patterns for dry-run output.
 # Keys are (resource_type, operation), values are URL path templates.

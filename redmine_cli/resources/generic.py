@@ -5,11 +5,11 @@ Provides a uniform interface for agents that don't need resource-specific comman
 """
 
 import click
-
-from ..output import emit, handle_errors, emit_dry_run
-from ..utils import parse_json_input, resourceset_to_list, resolve_json_data
-from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
 from redminelib.resources import registry as resource_registry
+
+from ..context import DRY_RUN_METHODS, build_dry_run_url, get_redmine, resolve_ref
+from ..output import emit, emit_dry_run, handle_errors
+from ..utils import resolve_json_data, resourceset_to_list
 
 
 def _get_manager(rm, resource_name):
@@ -331,7 +331,7 @@ def resource_schema(ctx, resource_name, live):
       redmine-cli -p prod resource schema issue --live
       redmine-cli resource schema wiki_page
     """
-    from ..schema import get_resource_schema, get_live_enums
+    from ..schema import get_live_enums, get_resource_schema
 
     try:
         schema = get_resource_schema(resource_name)

@@ -11,10 +11,10 @@ Exit codes:
   2  — argument / usage error
 """
 
-import sys
-import json
 import functools
+import json
 import re
+import sys
 
 import click
 from redminelib import exceptions

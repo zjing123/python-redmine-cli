@@ -22,10 +22,18 @@ redmine-cli = "redmine_cli.main:cli"
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
+    "ruff>=0.8.0",
 ]
 
 [tool.setuptools.packages.find]
 include = ["redmine_cli*"]
+
+[tool.ruff]
+target-version = "py38"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

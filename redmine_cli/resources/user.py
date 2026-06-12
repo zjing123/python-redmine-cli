@@ -2,9 +2,9 @@
 
 import click
 
-from ..output import emit, handle_errors, emit_dry_run
-from ..utils import parse_json_input, resourceset_to_list, build_fields, resolve_json_data
-from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
+from ..context import DRY_RUN_METHODS, build_dry_run_url, get_redmine, resolve_ref
+from ..output import emit, emit_dry_run, handle_errors
+from ..utils import build_fields, resolve_json_data, resourceset_to_list
 
 
 @click.group("user")
@@ -30,7 +30,8 @@ def user_group(ctx):
 )
 @click.option(
     "--fields",
-    help="Comma-separated fields to include in output (e.g. id,login,firstname,lastname). Reduces output size for agents.",
+    help="Comma-separated fields to include in output (e.g. id,login,firstname,lastname). "
+         "Reduces output size for agents.",
 )
 @click.pass_context
 @handle_errors
@@ -149,7 +150,8 @@ def user_create(
     \b
     Examples:
       redmine-cli -p redminex user create --login admin --firstname Admin --lastname User --mail admin@test.com
-      echo '{"login":"admin","firstname":"Admin","lastname":"User","mail":"admin@test.com"}' | redmine-cli -p redminex user create --stdin
+      echo '{"login":"admin","firstname":"Admin","lastname":"User","mail":"admin@test.com"}' \\
+        | redmine-cli -p redminex user create --stdin
     """
     rm = get_redmine(ctx)
     json_fields = resolve_json_data(json_data, stdin_mode)

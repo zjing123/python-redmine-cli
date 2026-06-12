@@ -2,18 +2,17 @@
 
 import click
 
-from .output import emit, handle_errors
-from .context import get_redmine
 from .config import (
+    _deduplicate_profile_name,
+    _extract_profile_name,
+    _resolve_config_path,
     load_config_file,
     save_config_file,
-    DEFAULT_CONFIG_PATH,
-    _extract_profile_name,
-    _deduplicate_profile_name,
-    _resolve_config_path,
 )
+from .context import get_redmine
+from .output import emit, handle_errors
+from .resources import generic, issue, project, time_entry, user, wiki_page
 from .utils import resourceset_to_list
-from .resources import issue, project, user, time_entry, wiki_page, generic
 
 
 @click.group()

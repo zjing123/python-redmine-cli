@@ -9,7 +9,6 @@ from redminelib.resources import registry as resource_registry
 
 from .fields import _snake_to_pascal
 
-
 # Hardcoded required/optional field definitions based on Redmine API docs.
 # These cannot be derived from the python-redmine library alone.
 # Keys are snake_case resource names matching the registry.
@@ -173,7 +172,6 @@ def get_resource_schema(resource_name):
     # Extract required URL params from query_create template
     required_url_params = []
     if creatable and hasattr(query_create, "formatter"):
-        formatter = query_create.formatter
         # formatter.used_kwargs is populated after format() call,
         # but we can extract from the template string
         import re

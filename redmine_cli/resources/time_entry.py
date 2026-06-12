@@ -2,9 +2,9 @@
 
 import click
 
-from ..output import emit, handle_errors, emit_dry_run
-from ..utils import parse_json_input, resourceset_to_list, build_fields, resolve_json_data
-from ..context import get_redmine, resolve_ref, build_dry_run_url, DRY_RUN_METHODS
+from ..context import DRY_RUN_METHODS, build_dry_run_url, get_redmine, resolve_ref
+from ..output import emit, emit_dry_run, handle_errors
+from ..utils import build_fields, resolve_json_data, resourceset_to_list
 
 
 @click.group("time-entry")
@@ -24,7 +24,8 @@ def time_entry_group(ctx):
 @click.argument("entry_ref")
 @click.option(
     "--fields",
-    help="Comma-separated fields to include in output (e.g. id,hours,activity,comments). Reduces output size for agents.",
+    help="Comma-separated fields to include in output (e.g. id,hours,activity,comments). "
+         "Reduces output size for agents.",
 )
 @click.pass_context
 @handle_errors
@@ -272,7 +273,7 @@ def time_entry_schema(ctx, live):
       redmine-cli time-entry schema
       redmine-cli -p prod time-entry schema --live
     """
-    from ..schema import get_resource_schema, get_live_enums
+    from ..schema import get_live_enums, get_resource_schema
 
     schema = get_resource_schema("time_entry")
     if live:
