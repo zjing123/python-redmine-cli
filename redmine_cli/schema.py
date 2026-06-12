@@ -169,6 +169,10 @@ def get_resource_schema(resource_name):
     # and there's no restriction. python-redmine allows update if query_one exists.
     updatable = query_update is not None
 
+    # Deletable if query_delete is set on the resource class.
+    query_delete = getattr(cls, "query_delete", None)
+    deletable = query_delete is not None
+
     # Extract required URL params from query_create template
     required_url_params = []
     if creatable and hasattr(query_create, "formatter"):
@@ -199,6 +203,7 @@ def get_resource_schema(resource_name):
         "resource": resource_name,
         "creatable": creatable,
         "updatable": updatable,
+        "deletable": deletable,
         "required_url_params": required_url_params,
         "required_fields": hardcoded.get("required_fields", []),
         "optional_fields": hardcoded.get("optional_fields", []),
