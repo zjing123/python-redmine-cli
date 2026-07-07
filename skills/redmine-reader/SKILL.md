@@ -141,6 +141,7 @@ redmine-cli issue list --assigned-to-me --all-profiles  # 遍历所有实例
 
 ```bash
 redmine-cli -p <profile> search "关键词" -r issues
+redmine-cli -p <profile> search "关键词" -r issues --project <id_or_identifier>   # 限定到单个项目
 ```
 
 ### issue schema — 理解数字 ID

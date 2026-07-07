@@ -809,6 +809,13 @@ redmine-cli search "部署" -r issues,wiki_pages,news
 |------|------|
 | `-r`, `--resources` | 逗号分隔的资源类型（如 `issues`, `wiki_pages`, `news`, `documents`, `changesets`） |
 
+按项目搜索：加 `--project / -P`（identifier 或数字 id，如 `redminex`、`42`）可把范围限定到单个项目，走 Redmine 项目级端点。适合已知某 issue 所属项目、想确认"该项目内还有没有其他 ticket 提到相同内容"。全文搜索为分词匹配，索引含 issue 正文与评论。
+
+```bash
+redmine-cli search "关键词" --project <id_or_identifier>
+redmine-cli search "API" -P 42 -r issues
+```
+
 ---
 
 ### resource — 通用资源路由
