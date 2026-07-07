@@ -109,3 +109,49 @@ def test_search(runner, mock_redmine, set_env):
     assert result.exit_code == 0
     data = parse_output(result.output)
     assert data["ok"] is True
+
+
+def test_search_with_project(runner, mock_redmine, set_env):
+    """--project rewrites rm.url to the project-scoped endpoint and restores it after."""
+    mock_rs = MagicMock()
+    mock_rs.__iter__ = lambda self: iter([])
+    mock_rs.__len__ = lambda self: 0
+    mock_rs.__getitem__ = lambda self, key: [][key]
+
+    captured = {}
+
+    def fake_search(query, **opts):
+        captured["url"] = mock_redmine.url
+        captured["query"] = query
+        return {"issues": mock_rs}
+
+    mock_redmine.search.side_effect = fake_search
+
+    result = runner.invoke(cli, ["search", "test query", "--project", "redminex"])
+
+    assert result.exit_code == 0
+    assert captured["url"] == "https://redmine.test/projects/redminex"
+    assert captured["query"] == "test query"
+    # url is restored after the call
+    assert mock_redmine.url == "https://redmine.test"
+
+
+def test_search_project_url_encodes(runner, mock_redmine, set_env):
+    """--project value is URL-encoded so special characters are safe in the path."""
+    mock_rs = MagicMock()
+    mock_rs.__iter__ = lambda self: iter([])
+    mock_rs.__len__ = lambda self: 0
+    mock_rs.__getitem__ = lambda self, key: [][key]
+
+    captured = {}
+
+    def fake_search(query, **opts):
+        captured["url"] = mock_redmine.url
+        return {"issues": mock_rs}
+
+    mock_redmine.search.side_effect = fake_search
+
+    result = runner.invoke(cli, ["search", "q", "--project", "my project"])
+
+    assert result.exit_code == 0
+    assert captured["url"] == "https://redmine.test/projects/my%20project"
