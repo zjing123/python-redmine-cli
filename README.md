@@ -1095,3 +1095,7 @@ python-redmine-cli/
 ## License
 
 Apache-2.0
+
+## Rust CLI
+
+See [README_RUST.md](README_RUST.md) for the Rust implementation and usage.
