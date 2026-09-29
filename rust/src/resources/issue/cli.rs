@@ -5,9 +5,9 @@ use serde_json::{Map, Value};
 use thiserror::Error;
 
 use crate::{
-    resources::issue::api::{ApiClient, IssueFilters},
     config::{Config, ConfigError, parse_issue_reference},
     output,
+    resources::issue::api::{ApiClient, IssueFilters},
 };
 
 #[derive(Debug, Error)]
