@@ -1,6 +1,8 @@
 use std::borrow::Cow;
 
-use redmine_api::api::issues::{GetIssue, Issue, IssueInclude, ListIssues, SortByColumn};
+use redmine_api::api::issues::{
+    GetIssue, Issue, IssueInclude, IssueListInclude, ListIssues, SortByColumn,
+};
 use redmine_api::api::{self, Endpoint, NoPagination, ResponsePage, ReturnsJsonResponse};
 use reqwest::{Method, blocking::Client};
 use serde_json::Value;
@@ -54,6 +56,12 @@ impl ApiClient {
         if let Some(project_id) = filters.project_id {
             builder.project_id(vec![project_id]);
         }
+        if let Some(tracker_id) = filters.tracker_id {
+            builder.tracker_id(vec![tracker_id]);
+        }
+        if let Some(priority_id) = filters.priority_id {
+            builder.priority_id(vec![priority_id]);
+        }
         if let Some(status) = &filters.status {
             builder.status_id(status_filter(status));
         }
@@ -61,6 +69,23 @@ impl ApiClient {
             builder.assignee(api::issues::AssigneeFilter::TheseAssignees(vec![
                 assignee_id,
             ]));
+        }
+        if let Some(subject) = &filters.subject {
+            builder.subject(api::StringFieldFilter::SubStringMatch(subject.clone()));
+        }
+        if let Some(custom_fields) = &filters.custom_fields {
+            builder.custom_field_filters(
+                custom_fields
+                    .iter()
+                    .map(|(id, value)| api::CustomFieldFilter {
+                        id: *id,
+                        value: api::StringFieldFilter::ExactMatch(value.clone()),
+                    })
+                    .collect(),
+            );
+        }
+        if !filters.includes.is_empty() {
+            builder.include(filters.includes.clone());
         }
         if let Some(sort) = &filters.sort {
             builder.sort(vec![sort_filter(sort)]);
@@ -112,8 +137,13 @@ impl ApiClient {
 #[derive(Debug, Default)]
 pub struct IssueFilters {
     pub project_id: Option<u64>,
+    pub tracker_id: Option<u64>,
+    pub priority_id: Option<u64>,
     pub status: Option<String>,
     pub assigned_to_id: Option<u64>,
+    pub subject: Option<String>,
+    pub custom_fields: Option<Vec<(u64, String)>>,
+    pub includes: Vec<IssueListInclude>,
     pub sort: Option<String>,
     pub limit: u64,
     pub offset: u64,
